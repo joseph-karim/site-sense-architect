@@ -152,6 +152,7 @@ Copysitesense-architect/
 │   ├── floor_plans.json     # Floor plan database
 │   └── floor_plans/         # Floor plan images
 └── README.md                # Project documentation
+
 API Endpoints
 The backend exposes the following API endpoints:
 
