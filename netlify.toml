@@ -1,0 +1,11 @@
+[build]
+  base = "frontend"
+  command = "npm install && npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Use Netlify's Next.js runtime plugin (handles App Router + API routes automatically)
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
