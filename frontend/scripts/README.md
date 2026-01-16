@@ -6,24 +6,43 @@ They read local files (no network access required) and load data into Postgres f
 
 ## Environment Variables
 
-Set `DATABASE_URL` or `SUPABASE_DATABASE_URL` before running any script:
+Configure database connection using one of these methods:
 
-**Option 1: Using .env file (recommended)**
+**Option 1: Full Connection String (Simplest)**
 ```bash
-# Add to .env or frontend/.env.local:
+# In backend/db/.env or .env:
+SUPABASE_DATABASE_URL="postgresql://postgres:password@db.project.supabase.co:5432/postgres?sslmode=require"
+# Or generic:
 DATABASE_URL="postgres://USER:PASSWORD@localhost:5432/part3"
-# Or for Supabase:
-SUPABASE_DATABASE_URL="postgresql://postgres:password@db.project.supabase.co:5432/postgres"
 ```
 
-**Option 2: Export in shell**
+**Option 2: Individual Components (More Flexible)**
+```bash
+# In backend/db/.env or .env:
+SUPABASE_DB_HOST="db.project.supabase.co"
+SUPABASE_DB_PORT="5432"
+SUPABASE_DB_USER="postgres"
+SUPABASE_DB_PASSWORD="your-password"
+SUPABASE_DB_NAME="postgres"
+SUPABASE_DB_SSL="require"
+```
+
+**Option 3: Export in Shell**
 ```bash
 export DATABASE_URL="postgres://USER:PASSWORD@localhost:5432/part3"
 # For local docker-compose: postgres://part3:part3@localhost:5432/part3
-# For Supabase: export SUPABASE_DATABASE_URL="your-connection-string"
 ```
 
-**Note:** Scripts will use `SUPABASE_DATABASE_URL` if available, otherwise fall back to `DATABASE_URL`.
+**Priority Order:**
+1. `SUPABASE_DATABASE_URL` (full connection string)
+2. Individual `SUPABASE_DB_*` components (built into connection string)
+3. `DATABASE_URL` (generic fallback)
+
+**Benefits of Individual Components:**
+- Better for secrets management
+- No manual URL encoding needed
+- Easier to switch connection methods
+- More flexible for different environments
 
 ## Import zoning districts (GeoJSON)
 

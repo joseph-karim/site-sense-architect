@@ -50,9 +50,23 @@ function asStringArray(value) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  // Prefer SUPABASE_DATABASE_URL, fallback to DATABASE_URL
-  const databaseUrl = process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL;
-  if (!databaseUrl) throw new Error("DATABASE_URL or SUPABASE_DATABASE_URL is required");
+  // Get database URL: prefer full URL, or build from components, or use DATABASE_URL
+  let databaseUrl = process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL;
+  
+  // If no full URL, try building from individual components
+  if (!databaseUrl && process.env.SUPABASE_DB_HOST && process.env.SUPABASE_DB_USER && process.env.SUPABASE_DB_PASSWORD) {
+    const host = process.env.SUPABASE_DB_HOST;
+    const port = process.env.SUPABASE_DB_PORT || "5432";
+    const user = process.env.SUPABASE_DB_USER;
+    const password = encodeURIComponent(process.env.SUPABASE_DB_PASSWORD);
+    const database = process.env.SUPABASE_DB_NAME || "postgres";
+    const sslMode = process.env.SUPABASE_DB_SSL || "require";
+    databaseUrl = `postgresql://${user}:${password}@${host}:${port}/${database}?sslmode=${sslMode}`;
+  }
+  
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL, SUPABASE_DATABASE_URL, or SUPABASE_DB_* components are required");
+  }
 
   const file = requireArg(args, "file");
   const raw = await fs.readFile(file, "utf8");

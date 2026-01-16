@@ -6,19 +6,41 @@ This guide covers two methods to set up your Supabase database for the Part3 Ent
 
 ### Step 1: Add Credentials to .env File
 
-Add your Supabase credentials to a `.env` file in the project root or `frontend/.env.local`:
+Add your Supabase credentials to `backend/db/.env` (or `.env` in project root):
 
+**Option 1: Full Connection String (Simplest)**
 ```bash
-# In .env or frontend/.env.local
-SUPABASE_DATABASE_URL="postgresql://postgres:your-password@db.ugrbscrgztlqrptavsxp.supabase.co:5432/postgres"
-# Or use DATABASE_URL (both work)
-DATABASE_URL="postgresql://postgres:your-password@db.ugrbscrgztlqrptavsxp.supabase.co:5432/postgres"
+SUPABASE_DATABASE_URL="postgresql://postgres:your-password@db.ugrbscrgztlqrptavsxp.supabase.co:5432/postgres?sslmode=require"
+```
 
-# Optional: Other Supabase credentials (for future use)
+**Option 2: Individual Components (More Flexible)**
+```bash
+SUPABASE_DB_HOST="db.ugrbscrgztlqrptavsxp.supabase.co"
+SUPABASE_DB_PORT="5432"
+SUPABASE_DB_USER="postgres"
+SUPABASE_DB_PASSWORD="your-password"
+SUPABASE_DB_NAME="postgres"
+SUPABASE_DB_SSL="require"
+```
+
+**Option 3: Generic DATABASE_URL**
+```bash
+DATABASE_URL="postgresql://postgres:your-password@db.ugrbscrgztlqrptavsxp.supabase.co:5432/postgres"
+```
+
+**Optional: Other Supabase credentials (for future use)**
+```bash
 SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 SUPABASE_ANON_KEY="your-anon-key"
 SUPABASE_JWT_SECRET="your-jwt-secret"
+MAPBOX_TOKEN="your-mapbox-token"
 ```
+
+**Benefits of Individual Components:**
+- Better for secrets management (can store password separately)
+- Easier to switch between connection methods (direct vs pooler)
+- No need to URL-encode special characters manually
+- More flexible for different environments
 
 **To get your connection string:**
 1. Go to your Supabase dashboard: https://supabase.com/dashboard/project/ugrbscrgztlqrptavsxp/settings/database

@@ -8,10 +8,37 @@ declare global {
   var __pgPool: pg.Pool | undefined;
 }
 
+/**
+ * Builds a PostgreSQL connection string from individual components
+ */
+function buildConnectionString(): string | null {
+  // Option 1: Use full connection string if provided
+  if (env.SUPABASE_DATABASE_URL) {
+    return env.SUPABASE_DATABASE_URL;
+  }
+  if (env.DATABASE_URL) {
+    return env.DATABASE_URL;
+  }
+
+  // Option 2: Build from individual components
+  if (env.SUPABASE_DB_HOST && env.SUPABASE_DB_USER && env.SUPABASE_DB_PASSWORD) {
+    const host = env.SUPABASE_DB_HOST;
+    const port = env.SUPABASE_DB_PORT || "5432";
+    const user = env.SUPABASE_DB_USER;
+    const password = encodeURIComponent(env.SUPABASE_DB_PASSWORD); // URL-encode password
+    const database = env.SUPABASE_DB_NAME || "postgres";
+    const sslMode = env.SUPABASE_DB_SSL || "require";
+
+    return `postgresql://${user}:${password}@${host}:${port}/${database}?sslmode=${sslMode}`;
+  }
+
+  return null;
+}
+
 export function getPool(): pg.Pool | null {
-  // Prefer SUPABASE_DATABASE_URL if available, fallback to DATABASE_URL
-  const connectionString = env.SUPABASE_DATABASE_URL || env.DATABASE_URL;
+  const connectionString = buildConnectionString();
   if (!connectionString) return null;
+  
   if (!globalThis.__pgPool) {
     // pg library automatically handles SSL from connection string parameters
     // Most cloud providers include ?sslmode=require in their connection strings

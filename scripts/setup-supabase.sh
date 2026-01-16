@@ -45,30 +45,57 @@ if [ -f "frontend/.env" ]; then
 fi
 
 # Determine which database URL to use
-# Prefer SUPABASE_DATABASE_URL if it's a valid PostgreSQL connection string
-# Otherwise fallback to DATABASE_URL
+# Priority: 1) SUPABASE_DATABASE_URL, 2) DATABASE_URL, 3) Build from components
+
 if [ -n "$SUPABASE_DATABASE_URL" ] && [[ "$SUPABASE_DATABASE_URL" == postgresql://* || "$SUPABASE_DATABASE_URL" == postgres://* ]]; then
   DATABASE_URL="$SUPABASE_DATABASE_URL"
-  echo "✅ Using SUPABASE_DATABASE_URL"
+  echo "✅ Using SUPABASE_DATABASE_URL (full connection string)"
 elif [ -n "$DATABASE_URL" ]; then
-  echo "✅ Using DATABASE_URL (SUPABASE_DATABASE_URL is not a valid PostgreSQL connection string)"
+  echo "✅ Using DATABASE_URL"
+  DATABASE_URL="$DATABASE_URL"
+elif [ -n "$SUPABASE_DB_HOST" ] && [ -n "$SUPABASE_DB_USER" ] && [ -n "$SUPABASE_DB_PASSWORD" ]; then
+  # Build connection string from individual components
+  HOST="${SUPABASE_DB_HOST}"
+  PORT="${SUPABASE_DB_PORT:-5432}"
+  USER="${SUPABASE_DB_USER}"
+  PASSWORD="${SUPABASE_DB_PASSWORD}"
+  DB_NAME="${SUPABASE_DB_NAME:-postgres}"
+  SSL_MODE="${SUPABASE_DB_SSL:-require}"
+  
+  # URL-encode password (handle special characters)
+  ENCODED_PASSWORD=$(printf '%s' "$PASSWORD" | jq -sRr @uri 2>/dev/null || echo "$PASSWORD" | sed 's/%/%25/g; s/?/%3F/g; s/@/%40/g; s/#/%23/g')
+  
+  DATABASE_URL="postgresql://${USER}:${ENCODED_PASSWORD}@${HOST}:${PORT}/${DB_NAME}?sslmode=${SSL_MODE}"
+  echo "✅ Built connection string from individual components"
+  echo "   Host: $HOST"
+  echo "   Port: $PORT"
+  echo "   User: $USER"
+  echo "   Database: $DB_NAME"
 else
   DATABASE_URL=""
 fi
 
 # Check for database URL
 if [ -z "$DATABASE_URL" ]; then
-  echo "❌ DATABASE_URL or SUPABASE_DATABASE_URL not found"
+  echo "❌ No database connection configuration found"
   echo ""
-  echo "Add one of these to your .env file:"
+  echo "Add one of these options to backend/db/.env or .env:"
   echo ""
-  echo "Option 1: Add SUPABASE_DATABASE_URL to .env or frontend/.env.local:"
+  echo "Option 1: Full connection string (recommended)"
   echo "  SUPABASE_DATABASE_URL='postgresql://postgres:password@db.$PROJECT_REF.supabase.co:5432/postgres'"
   echo ""
-  echo "Option 2: Add DATABASE_URL to .env or frontend/.env.local:"
+  echo "Option 2: Individual components (more flexible, better for secrets management)"
+  echo "  SUPABASE_DB_HOST='db.$PROJECT_REF.supabase.co'"
+  echo "  SUPABASE_DB_PORT='5432'"
+  echo "  SUPABASE_DB_USER='postgres'"
+  echo "  SUPABASE_DB_PASSWORD='your-password'"
+  echo "  SUPABASE_DB_NAME='postgres'"
+  echo "  SUPABASE_DB_SSL='require'"
+  echo ""
+  echo "Option 3: Generic DATABASE_URL"
   echo "  DATABASE_URL='postgresql://postgres:password@db.$PROJECT_REF.supabase.co:5432/postgres'"
   echo ""
-  echo "Get your connection string from Supabase dashboard:"
+  echo "Get connection details from Supabase dashboard:"
   echo "  https://supabase.com/dashboard/project/$PROJECT_REF/settings/database"
   echo ""
   echo "For connection pooling (recommended for Netlify/serverless):"
