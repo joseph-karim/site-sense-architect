@@ -4,8 +4,9 @@ import { isCity } from "@/lib/cities";
 
 export const runtime = "nodejs";
 
-export async function POST(_request: NextRequest, context: { params: { city: string } }) {
-  const city = context.params.city.toLowerCase();
+export async function POST(_request: NextRequest, context: { params: Promise<{ city: string }> }) {
+  const params = await context.params;
+  const city = params.city.toLowerCase();
   if (!isCity(city)) return jsonError("Unsupported city", 400);
 
   // TODO: implement Socrata sync to `permits` table (App Token + paging)

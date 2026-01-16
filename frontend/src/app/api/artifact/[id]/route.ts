@@ -4,8 +4,9 @@ import { getArtifactStore } from "@/lib/storage/getArtifactStore";
 
 export const runtime = "nodejs";
 
-export async function GET(_request: NextRequest, context: { params: { id: string } }) {
-  const artifact = await getArtifactStore().getById(context.params.id);
+export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
+  const artifact = await getArtifactStore().getById(params.id);
   if (!artifact) return jsonError("Artifact not found", 404);
   return jsonOk({ artifact });
 }
