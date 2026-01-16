@@ -27,22 +27,27 @@ export default async function CommercialZoningCityPage({ params }: { params: Pro
   if (!isCity(city)) return notFound();
 
   const pool = getPool();
-  const zones =
-    pool
-      ? (
-          await pool.query(
-            `
-            SELECT zone_code, zone_name
-            FROM zoning_districts
-            WHERE city = $1
-            GROUP BY zone_code, zone_name
-            ORDER BY zone_code ASC
-            LIMIT 40
-            `,
-            [city]
-          )
-        ).rows
-      : [];
+  let zones: any[] = [];
+  if (pool) {
+    try {
+      const result = await pool.query(
+        `
+        SELECT zone_code, zone_name
+        FROM zoning_districts
+        WHERE city = $1
+        GROUP BY zone_code, zone_name
+        ORDER BY zone_code ASC
+        LIMIT 40
+        `,
+        [city]
+      );
+      zones = result.rows;
+    } catch (error) {
+      // Database connection may not be available during build
+      console.warn(`Database query failed during build for ${city}:`, error);
+      zones = [];
+    }
+  }
 
   const cityName = city.charAt(0).toUpperCase() + city.slice(1);
 

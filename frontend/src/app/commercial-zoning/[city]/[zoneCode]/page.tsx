@@ -27,9 +27,21 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
 
   const zoneCode = decodeURIComponent(zoneCodeParam).toUpperCase();
   const pool = getPool();
-  const district = pool ? await getZoningDistrictByCode({ city, zone_code: zoneCode }) : null;
-  const rules = pool ? await getZoningRulesForZone({ city, zone_code: zoneCode }) : null;
-  if (pool && !district) return notFound();
+  let district = null;
+  let rules = null;
+  
+  if (pool) {
+    try {
+      district = await getZoningDistrictByCode({ city, zone_code: zoneCode });
+      rules = await getZoningRulesForZone({ city, zone_code: zoneCode });
+      if (!district) return notFound();
+    } catch (error) {
+      // Database connection may not be available during build
+      console.warn(`Database query failed during build for ${city}/${zoneCode}:`, error);
+      // Return notFound if we have a pool but query failed
+      if (pool) return notFound();
+    }
+  }
 
   const overlays = district ? deriveOverlayFlags(city, district.properties) : [];
 
