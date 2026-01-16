@@ -1,0 +1,233 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Fonts (runtime-loaded via <link>, with fallbacks) */
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+
+  /* Primary — Deep Navy (Part3 brand) */
+  --primary-50: #f0f4f8;
+  --primary-100: #d9e2ec;
+  --primary-200: #bcccdc;
+  --primary-300: #9fb3c8;
+  --primary-400: #829ab1;
+  --primary-500: #627d98;
+  --primary-600: #486581;
+  --primary-700: #334e68;
+  --primary-800: #243b53;
+  --primary-900: #102a43;
+  --primary-950: #0a1929;
+
+  /* Accent — Teal (action, success, forward momentum) */
+  --accent-50: #e6fffa;
+  --accent-100: #b2f5ea;
+  --accent-200: #81e6d9;
+  --accent-300: #4fd1c5;
+  --accent-400: #38b2ac;
+  --accent-500: #319795;
+  --accent-600: #2c7a7b;
+  --accent-700: #285e61;
+  --accent-800: #234e52;
+  --accent-900: #1d4044;
+
+  /* Status — Semantic colors */
+  --success-500: #22c55e;
+  --success-100: #dcfce7;
+  --warning-500: #f59e0b;
+  --warning-100: #fef3c7;
+  --error-500: #ef4444;
+  --error-100: #fee2e2;
+  --info-500: #3b82f6;
+  --info-100: #dbeafe;
+
+  /* Neutral — Cool grays */
+  --gray-50: #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --gray-900: #0f172a;
+
+  /* Surface colors */
+  --surface-primary: #ffffff;
+  --surface-secondary: var(--gray-50);
+  --surface-elevated: #ffffff;
+  --surface-overlay: rgba(15, 23, 42, 0.6);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-glow: 0 0 20px rgba(49, 151, 149, 0.3);
+
+  /* Durations */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --duration-slower: 600ms;
+
+  /* Easings */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* Spacing */
+  --card-padding: 1.5rem;
+  --section-gap: 4rem;
+  --input-padding-x: 1rem;
+  --input-padding-y: 0.75rem;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* Base layer overrides */
+@layer base {
+  body {
+    @apply antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Focus visible styling */
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent-500 ring-offset-2 ring-offset-primary-950;
+  }
+
+  /* Selection styling */
+  ::selection {
+    @apply bg-accent-500/30;
+  }
+}
+
+/* Component layer */
+@layer components {
+  /* Metric card styling */
+  .metric-card {
+    @apply bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10;
+  }
+
+  /* Status badges */
+  .badge-success {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-success-100 text-success-700;
+  }
+
+  .badge-warning {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-warning-100 text-warning-700;
+  }
+
+  .badge-error {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-error-100 text-error-700;
+  }
+
+  /* Data row styling */
+  .data-row {
+    @apply flex items-center justify-between py-3 border-b border-white/10 last:border-0;
+  }
+
+  /* Elevated card */
+  .card-elevated {
+    @apply bg-white rounded-xl shadow-lg border-0 overflow-hidden;
+  }
+
+  /* Glass card */
+  .card-glass {
+    @apply bg-white/5 backdrop-blur-md rounded-xl border border-white/10;
+  }
+
+  /* Button primary */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-medium
+           bg-accent-500 text-white shadow-md
+           hover:bg-accent-600 hover:shadow-lg hover:shadow-accent-500/20
+           active:scale-[0.98] transition-all duration-150
+           disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-md;
+  }
+
+  /* Button secondary */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-medium
+           bg-white/10 text-white border border-white/20
+           hover:bg-white/20 hover:border-white/30
+           active:scale-[0.98] transition-all duration-150;
+  }
+
+  /* Button ghost */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium
+           text-gray-300 hover:text-white hover:bg-white/10
+           transition-all duration-150;
+  }
+
+  /* Input styling */
+  .input-elevated {
+    @apply w-full h-12 px-4 rounded-lg text-base
+           bg-white/5 border border-white/20 text-white placeholder:text-gray-500
+           focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:outline-none
+           transition-all duration-150;
+  }
+
+  /* Select styling */
+  .select-elevated {
+    @apply w-full h-12 px-4 rounded-lg text-base appearance-none
+           bg-white/5 border border-white/20 text-white
+           focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:outline-none
+           transition-all duration-150 cursor-pointer;
+  }
+}
+
+/* Utility layer */
+@layer utilities {
+  /* Staggered animations */
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+  .stagger-5 { animation-delay: 0.5s; }
+
+  /* Text gradient */
+  .text-gradient {
+    @apply bg-gradient-to-r from-accent-300 to-accent-500 bg-clip-text text-transparent;
+  }
+
+  /* Glow effect */
+  .glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-white/5 backdrop-blur-md;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Skeleton loading animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  @apply bg-gradient-to-r from-white/5 via-white/10 to-white/5 bg-[length:200%_100%];
+  animation: shimmer 1.5s ease-in-out infinite;
+}

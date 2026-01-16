@@ -17,6 +17,7 @@
 # Temporary files
 **/.tmp*
 .tmp.driveupload/
+**/*.tsbuildinfo
 
 # Log files
 *.log
@@ -28,6 +29,7 @@
 # Large data directories
 data/CubiCasa5k/
 data/processed_data/
+backend/data/
 
 # Large data files
 data/Greater_Austin_Fully_Developed_Floodplain.csv

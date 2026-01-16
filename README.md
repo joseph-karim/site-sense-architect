@@ -1,199 +1,104 @@
-# Site Sense Architect
-Overview
-SiteSense Architect is an interactive tool that helps users analyze residential properties in Austin, TX and receive AI-recommended floor plans based on site-specific zoning regulations and environmental characteristics. This tool bridges the gap between site selection and architectural design, providing valuable insights for property owners, developers, and architects.
-Features
+# Part3 Entitlement Intelligence Platform
 
-Interactive Map Interface: Select any residential address in Austin through a Mapbox-powered map
-Comprehensive Property Analysis: Instantly view zoning constraints, environmental factors, and building potential
-AI-Recommended Floor Plans: See floor plan designs specifically tailored to the selected property
-Conversational AI Assistant: Ask questions about the property through text or voice interface
-Environmental Considerations: Analysis includes slope, flood risk, and solar orientation
+Product-led SEO platform that turns zoning + permitting + code “unknowns” into real artifacts (web view + PDF).
 
-Tech Stack
+## Scope (commercial-only)
 
-Frontend: React.js
-Backend: FastAPI (Python)
-Database: Structured JSON files
-Deployment: Vercel (frontend and serverless functions)
-External Services:
+This repository intentionally focuses on **commercial and institutional** projects (not residential-only work).
 
-Mapbox GL JS (mapping and geocoding)
-OpenAI API (AI analysis and chat)
-Vapi (voice interface)
+Canonical `use_type` values:
+- `office`
+- `retail`
+- `mixed-use`
+- `healthcare`
+- `education`
+- `civic`
 
+## What’s in this repo
 
+- `frontend/`: Next.js 14 (App Router) web + API routes
+- `backend/db/`: Postgres 16 + PostGIS schema migrations + seed SQL
+- `docker-compose.yml`: local PostGIS + Redis
 
-Installation
-Prerequisites
+## Quickstart (local)
 
-Node.js (v14+)
-Python (v3.9+)
-Mapbox API key
-OpenAI API key
-Vapi API key
+1) Start PostGIS + Redis:
 
-Setup
+`docker compose up -d`
 
-Clone the repository
+2) Set env vars:
 
-bashCopygit clone https://github.com/yourusername/sitesense-architect.git
-cd sitesense-architect
+- Copy `backend/.env.example` → your shell env (or `.env` in your preferred loader)
+- Copy `frontend/.env.example` → `frontend/.env.local`
 
-Set up the backend
+If you run Next.js on a non-default port (e.g. `3002`), set `NEXT_PUBLIC_APP_URL` accordingly so `sitemap.xml` uses the right host.
 
-bashCopycd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+3) Create tables:
 
-Configure environment variables
+`psql "$DATABASE_URL" -f backend/db/migrations/001_init.sql`
 
-Create a .env file in the backend directory:
-CopyOPENAI_API_KEY=your_openai_api_key_here
-MAPBOX_TOKEN=your_mapbox_token_here
-FRONTEND_URL=http://localhost:3000
+4) Optional: seed MVP tripwires:
 
-Set up the frontend
+`psql "$DATABASE_URL" -f backend/db/seeds/001_tripwires.sql`
 
-bashCopycd ../frontend
-npm install
-Create a .env file in the frontend directory:
-CopyNEXT_PUBLIC_MAPBOX_TOKEN=your_mapbox_token_here
-NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
-OPENAI_API_KEY=your_openai_api_key_here
+5) Import city datasets (local files):
 
-Start the development servers
+- Zoning (GeoJSON): see `frontend/scripts/README.md`
+- Permits (JSON export): see `frontend/scripts/README.md`
 
-In one terminal (backend):
-bashCopycd backend
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-uvicorn main:app --reload
-In another terminal (frontend):
-bashCopycd frontend
-npm run dev
+Tip: run imports from `frontend/`:
 
-Open your browser and navigate to http://localhost:3000
+`cd frontend && npm run import:zoning -- --city seattle --file ../backend/data/seattle/zoning/zoning.geojson --zone-code-field ZONING --zone-name-field ZONELUT_DE --source-url https://data.seattle.gov/dataset/Zoning --last-updated 2026-01-16`
 
-Data Sources
-SiteSense Architect uses several data sources:
+6) After importing permits, compute timeline percentiles:
 
-Zoning Data: Derived from Austin's Land Development Code
-Floor Plans: Processed from the CubiCasa5k dataset
-Environmental Data: Elevation, flood zones, and solar orientation calculations
+`curl -X POST http://localhost:3000/api/admin/calculate-permit-stats/seattle`
 
-Adding Custom Floor Plans
-To add your own floor plans to the database:
+7) Run the web app:
 
-Place floor plan images in the data/floor_plans directory
-Add entries to data/floor_plans.json with the following format:
+`cd frontend && npm install && npm run dev`
 
-jsonCopy{
-  "id": "plan_00001",
-  "name": "Modern Ranch Home",
-  "square_footage": 2200,
-  "num_floors": 1,
-  "bedrooms": 3,
-  "bathrooms": 2,
-  "lot_width": 60,
-  "lot_depth": 100,
-  "suitable_zones": ["SF-3", "SF-4", "SF-5"],
-  "image_url": "/floor_plans/plan_00001.jpg"
-}
-Usage
+Open `http://localhost:3000` (or your chosen port).
 
-Property Selection
+Notes:
+- `backend/data/` is `.gitignore`’d so you can keep large downloads locally without committing them.
+- Once `zoning_districts` is imported, `/api/zoning/lookup` uses PostGIS spatial queries instead of mocks.
+- `docker-compose.yml` maps Redis to `localhost:6380` to avoid common `6379` conflicts.
 
-Enter an address in the search bar or browse the map to select a property
-The tool will automatically geocode the address and retrieve property data
+## API endpoints (spec-aligned)
 
+Public:
+- `GET /api/zoning/lookup?address=&city=&use_type=`
+- `GET /api/permits/pathway?city=&project_type=`
+- `GET /api/code/tripwires?city=&occupancy_type=`
+- `GET /api/artifact/:id`
+- `GET /api/artifact/:id/pdf`
 
-View Analysis
+Protected (email capture):
+- `POST /api/artifact/kickoff-pack`
+- `POST /api/risk-register/track`
 
-See zoning information, including setbacks, height limits, and lot coverage
-Review environmental factors like slope, flood risk, and solar orientation
-Understand key constraints and opportunities for development
+Admin:
+- `POST /api/admin/sync-zoning/:city` (stub)
+- `POST /api/admin/sync-permits/:city` (stub)
+- `POST /api/admin/calculate-permit-stats/:city` (minimal implementation)
 
+## SEO routes
 
-Explore Floor Plans
+- `/commercial-zoning/[city]`
+- `/commercial-zoning/[city]/[zoneCode]` (wired to DB when populated)
+- `/commercial-permits/[city]`
+- `/commercial-snapshots/[city]/[useType]` (generalized, non-address previews)
+- `/tools/commercial-zoning-snapshot`
+- `/tools/commercial-permit-pathway`
+- `/tools/commercial-risk-register`
+- `/tools/[toolSlug]`
+- `/report/[artifactSlug]`
 
-Browse AI-recommended floor plans that match the property's constraints
-View compatibility scores and specific matching factors
-Click on plans to see more detailed information
+Legacy routes (`/zoning/*`, `/permits/*`, `/zoning/*/use/*`) redirect into the canonical commercial routes and are intentionally excluded from the sitemap to avoid duplicate indexing.
 
+## Implementation notes
 
-Ask Questions
-
-Use the AI assistant to ask specific questions about the property
-Get guidance on zoning regulations, variance possibilities, and design considerations
-Toggle between text and voice interaction modes
-
-
-
-Application Structure
-Copysitesense-architect/
-├── frontend/                # React frontend
-│   ├── public/              # Static assets
-│   ├── src/                 # React source code
-│   │   ├── components/      # React components
-│   │   ├── pages/           # Next.js pages
-│   │   ├── styles/          # CSS styles
-│   │   └── utils/           # Utility functions
-│   ├── package.json         # Frontend dependencies
-│   └── .env                 # Frontend environment variables
-├── backend/                 # FastAPI backend
-│   ├── main.py              # Main application file
-│   ├── routers/             # API route handlers
-│   ├── models/              # Data models
-│   ├── services/            # Business logic services
-│   ├── requirements.txt     # Backend dependencies
-│   └── .env                 # Backend environment variables
-├── data/                    # Data files
-│   ├── zoning_regulations.json  # Austin zoning data
-│   ├── floor_plans.json     # Floor plan database
-│   └── floor_plans/         # Floor plan images
-└── README.md                # Project documentation
-
-API Endpoints
-The backend exposes the following API endpoints:
-
-GET /api/site-info/{address} - Retrieve comprehensive property analysis
-POST /api/chat - Interact with the AI assistant
-GET /api/floor-plans - List all available floor plans
-GET /api/floor-plans/{id} - Get details for a specific floor plan
-
-Development
-Adding New Zoning Codes
-To add support for additional zoning codes:
-
-Update data/zoning_regulations.json with the new zone information
-Add parsing logic in backend/services/zoning_service.py if needed
-Update the floor plan matching algorithm to consider the new zone
-
-Extending to New Cities
-To extend the tool to support additional cities:
-
-Gather zoning data for the target city
-Create a new city-specific zoning data file
-Add city detection in the address geocoding process
-Implement city-specific environmental factor calculations
-Update the frontend to allow city selection
-
-Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-Fork the repository
-Create your feature branch (git checkout -b feature/amazing-feature)
-Commit your changes (git commit -m 'Add some amazing feature')
-Push to the branch (git push origin feature/amazing-feature)
-Open a Pull Request
-
-License
-This project is licensed under the MIT License - see the LICENSE file for details.
-Acknowledgments
-
-CubiCasa5k Dataset - For providing the base floor plan data
-City of Austin - For making zoning and planning data accessible
-Mapbox - For their excellent mapping platform
-OpenAI - For powering the conversational AI features
-Vapi - For enabling voice interface capabilities
-
+- The “artifact creation” integration point is `frontend/src/lib/services/artifactService.ts`.
+- When `DATABASE_URL` is set, `/api/zoning/lookup`, `/api/code/tripwires`, and `/api/permits/pathway` will query Postgres if the relevant tables are populated, and fall back to mocks otherwise.
+- PDF output is a lightweight placeholder renderer (`frontend/src/lib/pdf/simplePdf.ts`) so downloads work end-to-end.
