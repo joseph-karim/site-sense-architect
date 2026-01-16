@@ -1,8 +1,32 @@
 # Supabase Connection Troubleshooting
 
-## Current Issue: Connection Refused
+## Getting the Correct Connection String
 
-The connection string has been saved to `backend/db/.env`, but connections are being refused.
+**Important**: Get your connection string directly from the Supabase dashboard to ensure it's correct.
+
+1. Go to: https://supabase.com/dashboard/project/ugrbscrgztlqrptavsxp/settings/database
+2. Click the **"Connect"** button at the top
+3. Choose the appropriate connection method:
+
+### For Netlify/Serverless (Recommended)
+- Select **"Connection pooling"** tab
+- Choose **"Transaction mode"** (port 6543)
+- Copy the connection string
+- This is optimized for serverless functions
+
+### For Persistent Backends
+- Select **"Connection pooling"** tab  
+- Choose **"Session mode"** (port 5432)
+- Copy the connection string
+
+### For Direct Connection (requires IPv6)
+- Select **"URI"** tab
+- Copy the connection string
+- Only works if your network supports IPv6
+
+## Current Issue: Authentication Failed
+
+The connection string format appears correct, but authentication is failing.
 
 ## Quick Fixes
 
