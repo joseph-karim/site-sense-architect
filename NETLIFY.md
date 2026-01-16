@@ -63,10 +63,7 @@ Netlify doesn't run Docker containers, so you need a remote PostgreSQL database.
 
 ## Quick Setup
 
-1. **Install the Netlify plugin** (if not already in package.json):
-   ```bash
-   cd frontend && npm install --save-dev @netlify/plugin-nextjs
-   ```
+1. **Netlify plugin**: `netlify.toml` already enables `@netlify/plugin-nextjs@4` via the `[[plugins]]` section (no need to add it as an npm dependency).
 
 2. **Set Environment Variables in Netlify Dashboard:**
    - Go to Site settings → Environment variables
@@ -78,7 +75,7 @@ Netlify doesn't run Docker containers, so you need a remote PostgreSQL database.
 3. **Build Settings in Netlify Dashboard:**
    - The `netlify.toml` file is already configured with:
      - Base directory: `frontend`
-     - Build command: `npm install && npm run build`
+     - Build command: `npm ci && npm run build`
      - Publish directory: `.next`
    - Netlify will auto-detect `netlify.toml` - no manual configuration needed!
 
@@ -91,7 +88,7 @@ Netlify doesn't run Docker containers, so you need a remote PostgreSQL database.
 ### 404 Errors
 
 If you're getting 404s:
-1. Ensure `@netlify/plugin-nextjs` is installed: `cd frontend && npm install --save-dev @netlify/plugin-nextjs`
+1. Check that `netlify.toml` includes `[[plugins]] package = "@netlify/plugin-nextjs@4"`
 2. Check that `netlify.toml` is in the repository root
 3. Verify build logs show the Next.js plugin is running
 4. Check that environment variables are set correctly

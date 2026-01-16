@@ -1,6 +1,6 @@
 [build]
   base = "frontend"
-  command = "npm install && npm run build"
+  command = "npm ci && npm run build"
   publish = ".next"
 
 [build.environment]
@@ -8,7 +8,7 @@
 
 # Use Netlify's Next.js runtime plugin (handles App Router + API routes automatically)
 [[plugins]]
-  package = "@netlify/plugin-nextjs"
+  package = "@netlify/plugin-nextjs@4"
 
 # Note: SUPABASE_DB_USER, SUPABASE_DB_PORT, SUPABASE_DB_SSL are environment variable names,
 # not secrets. These are configuration keys, not actual credential values.
