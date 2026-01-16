@@ -15,6 +15,14 @@ echo "🚀 Setting up Supabase project: $PROJECT_REF"
 echo ""
 
 # Load environment variables from .env files if they exist
+# Check in order: backend/db/.env, .env, frontend/.env.local, frontend/.env
+if [ -f "backend/db/.env" ]; then
+  echo "📄 Loading backend/db/.env..."
+  set -a
+  source backend/db/.env
+  set +a
+fi
+
 if [ -f ".env" ]; then
   echo "📄 Loading .env file from project root..."
   set -a
@@ -37,8 +45,16 @@ if [ -f "frontend/.env" ]; then
 fi
 
 # Determine which database URL to use
-# Prefer SUPABASE_DATABASE_URL, fallback to DATABASE_URL
-DATABASE_URL="${SUPABASE_DATABASE_URL:-$DATABASE_URL}"
+# Prefer SUPABASE_DATABASE_URL if it's a valid PostgreSQL connection string
+# Otherwise fallback to DATABASE_URL
+if [ -n "$SUPABASE_DATABASE_URL" ] && [[ "$SUPABASE_DATABASE_URL" == postgresql://* || "$SUPABASE_DATABASE_URL" == postgres://* ]]; then
+  DATABASE_URL="$SUPABASE_DATABASE_URL"
+  echo "✅ Using SUPABASE_DATABASE_URL"
+elif [ -n "$DATABASE_URL" ]; then
+  echo "✅ Using DATABASE_URL (SUPABASE_DATABASE_URL is not a valid PostgreSQL connection string)"
+else
+  DATABASE_URL=""
+fi
 
 # Check for database URL
 if [ -z "$DATABASE_URL" ]; then
