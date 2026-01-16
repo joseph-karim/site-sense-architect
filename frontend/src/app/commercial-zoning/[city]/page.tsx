@@ -12,16 +12,18 @@ export function generateStaticParams() {
   return Cities.map((city) => ({ city }));
 }
 
-export function generateMetadata({ params }: { params: { city: string } }): Metadata {
-  const cityName = params.city.charAt(0).toUpperCase() + params.city.slice(1);
+export async function generateMetadata({ params }: { params: Promise<{ city: string }> }): Promise<Metadata> {
+  const { city } = await params;
+  const cityName = city.charAt(0).toUpperCase() + city.slice(1);
   return {
     title: `Commercial zoning rules in ${cityName} | Part3`,
     description: `Plain-English zoning constraints, overlays, and approval triggers for commercial and institutional projects in ${cityName}.`
   };
 }
 
-export default async function CommercialZoningCityPage({ params }: { params: { city: string } }) {
-  const city = params.city.toLowerCase();
+export default async function CommercialZoningCityPage({ params }: { params: Promise<{ city: string }> }) {
+  const { city: cityParam } = await params;
+  const city = cityParam.toLowerCase();
   if (!isCity(city)) return notFound();
 
   const pool = getPool();

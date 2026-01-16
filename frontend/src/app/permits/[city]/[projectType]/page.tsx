@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 
-export default function PermitProjectTypeRedirectPage({
+export default async function PermitProjectTypeRedirectPage({
   params
 }: {
-  params: { city: string; projectType: string };
+  params: Promise<{ city: string; projectType: string }>;
 }) {
-  redirect(`/commercial-permits/${params.city}?project_type=${params.projectType}`);
+  const { city, projectType } = await params;
+  redirect(`/commercial-permits/${city}?project_type=${projectType}`);
 }

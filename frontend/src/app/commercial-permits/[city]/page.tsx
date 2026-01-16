@@ -13,16 +13,18 @@ export function generateStaticParams() {
   return Cities.map((city) => ({ city }));
 }
 
-export function generateMetadata({ params }: { params: { city: string } }): Metadata {
-  const cityName = params.city.charAt(0).toUpperCase() + params.city.slice(1);
+export async function generateMetadata({ params }: { params: Promise<{ city: string }> }): Promise<Metadata> {
+  const { city } = await params;
+  const cityName = city.charAt(0).toUpperCase() + city.slice(1);
   return {
     title: `Commercial building permit process in ${cityName} | Part3`,
     description: `Approvals, review steps, and common delays for commercial construction projects in ${cityName}.`
   };
 }
 
-export default function CommercialPermitsCityPage({ params }: { params: { city: string } }) {
-  const city = params.city.toLowerCase();
+export default async function CommercialPermitsCityPage({ params }: { params: Promise<{ city: string }> }) {
+  const { city: cityParam } = await params;
+  const city = cityParam.toLowerCase();
   if (!isCity(city)) return notFound();
   const cityName = city.charAt(0).toUpperCase() + city.slice(1);
 

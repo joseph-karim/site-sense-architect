@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
-export default function PermitsRedirectPage({ params }: { params: { city: string } }) {
-  redirect(`/commercial-permits/${params.city}`);
+export default async function PermitsRedirectPage({ params }: { params: Promise<{ city: string }> }) {
+  const { city } = await params;
+  redirect(`/commercial-permits/${city}`);
 }

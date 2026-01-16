@@ -11,19 +11,21 @@ import { UseTypes } from "@/lib/seo/staticParams";
 export const runtime = "nodejs";
 export const revalidate = 3600;
 
-export function generateMetadata({ params }: { params: { city: string; zoneCode: string } }): Metadata {
-  const cityName = params.city.charAt(0).toUpperCase() + params.city.slice(1);
+export async function generateMetadata({ params }: { params: Promise<{ city: string; zoneCode: string }> }): Promise<Metadata> {
+  const { city, zoneCode } = await params;
+  const cityName = city.charAt(0).toUpperCase() + city.slice(1);
   return {
-    title: `${params.zoneCode} zoning district — commercial projects in ${cityName} | Part3`,
-    description: `Allowed commercial uses, dimensional limits, and entitlement triggers for ${params.zoneCode} in ${cityName}.`
+    title: `${zoneCode} zoning district — commercial projects in ${cityName} | Part3`,
+    description: `Allowed commercial uses, dimensional limits, and entitlement triggers for ${zoneCode} in ${cityName}.`
   };
 }
 
-export default async function CommercialZonePage({ params }: { params: { city: string; zoneCode: string } }) {
-  const city = params.city.toLowerCase();
+export default async function CommercialZonePage({ params }: { params: Promise<{ city: string; zoneCode: string }> }) {
+  const { city: cityParam, zoneCode: zoneCodeParam } = await params;
+  const city = cityParam.toLowerCase();
   if (!isCity(city)) return notFound();
 
-  const zoneCode = decodeURIComponent(params.zoneCode).toUpperCase();
+  const zoneCode = decodeURIComponent(zoneCodeParam).toUpperCase();
   const pool = getPool();
   const district = pool ? await getZoningDistrictByCode({ city, zone_code: zoneCode }) : null;
   const rules = pool ? await getZoningRulesForZone({ city, zone_code: zoneCode }) : null;

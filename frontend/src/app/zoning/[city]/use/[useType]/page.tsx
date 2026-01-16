@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
-export default function ZoningUseRedirectPage({ params }: { params: { city: string; useType: string } }) {
-  redirect(`/commercial-snapshots/${params.city}/${params.useType}`);
+export default async function ZoningUseRedirectPage({ params }: { params: Promise<{ city: string; useType: string }> }) {
+  const { city, useType } = await params;
+  redirect(`/commercial-snapshots/${city}/${useType}`);
 }

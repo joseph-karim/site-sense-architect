@@ -12,22 +12,24 @@ export function generateStaticParams() {
   return Cities.flatMap((city) => UseTypes.map((useType) => ({ city, useType })));
 }
 
-export function generateMetadata({ params }: { params: { city: string; useType: string } }): Metadata {
-  const cityName = params.city.charAt(0).toUpperCase() + params.city.slice(1);
-  const useLabel = params.useType.replaceAll("-", " ");
+export async function generateMetadata({ params }: { params: Promise<{ city: string; useType: string }> }): Promise<Metadata> {
+  const { city, useType } = await params;
+  const cityName = city.charAt(0).toUpperCase() + city.slice(1);
+  const useLabel = useType.replaceAll("-", " ");
   return {
     title: `Zoning and entitlement considerations for ${useLabel} projects in ${cityName} | Part3`,
     description: `Common zoning constraints, approval triggers, and risks for commercial ${useLabel} projects in ${cityName}.`
   };
 }
 
-export default function CommercialSnapshotPreviewPage({ params }: { params: { city: string; useType: string } }) {
-  const city = params.city.toLowerCase();
+export default async function CommercialSnapshotPreviewPage({ params }: { params: Promise<{ city: string; useType: string }> }) {
+  const { city: cityParam, useType } = await params;
+  const city = cityParam.toLowerCase();
   if (!isCity(city)) return notFound();
-  if (!UseTypes.includes(params.useType as any)) return notFound();
+  if (!UseTypes.includes(useType as any)) return notFound();
 
   const cityName = city.charAt(0).toUpperCase() + city.slice(1);
-  const useLabel = params.useType.replaceAll("-", " ");
+  const useLabel = useType.replaceAll("-", " ");
 
   return (
     <div className="space-y-10">
