@@ -1,0 +1,3 @@
+# Ignore false positive secret detections
+# These are environment variable names, not actual secrets
+# SUPABASE_DB_USER, SUPABASE_DB_PORT, SUPABASE_DB_SSL are configuration keys
