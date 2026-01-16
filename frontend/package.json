@@ -12,7 +12,8 @@
     "import:zoning": "node scripts/import-zoning-geojson.mjs",
     "import:permits": "node scripts/import-permits-json.mjs",
     "bootstrap:zoning-rules": "node scripts/bootstrap-zoning-rules.mjs",
-    "import:zoning-rules": "node scripts/import-zoning-rules-json.mjs"
+    "import:zoning-rules": "node scripts/import-zoning-rules-json.mjs",
+    "export:zoning-index": "node scripts/export-zoning-index.mjs"
   },
   "dependencies": {
     "@types/mapbox-gl": "^3.4.1",

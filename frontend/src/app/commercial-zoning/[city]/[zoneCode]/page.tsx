@@ -2,14 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, Building2 } from "lucide-react";
-import { isCity } from "@/lib/cities";
-import { getPool } from "@/lib/db/pool";
-import { getZoningDistrictByCode, getZoningRulesForZone } from "@/lib/services/zoningDb";
-import { deriveOverlayFlags } from "@/lib/services/overlayFlags";
+import { Cities, isCity } from "@/lib/cities";
+import { getZoneName, getTopZonesForCity } from "@/lib/seo/zoningIndex";
 import { UseTypes } from "@/lib/seo/staticParams";
 
 export const runtime = "nodejs";
-export const revalidate = 3600;
+export const revalidate = 86400;
+
+export function generateStaticParams() {
+  // SSG a limited, high-value set of zone pages; expand by populating the zoning index.
+  return Cities.flatMap((city) => getTopZonesForCity(city, 40).map((z) => ({ city, zoneCode: z.zone_code })));
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ city: string; zoneCode: string }> }): Promise<Metadata> {
   const { city, zoneCode } = await params;
@@ -26,24 +29,7 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
   if (!isCity(city)) return notFound();
 
   const zoneCode = decodeURIComponent(zoneCodeParam).toUpperCase();
-  const pool = getPool();
-  let district = null;
-  let rules = null;
-  
-  if (pool) {
-    try {
-      district = await getZoningDistrictByCode({ city, zone_code: zoneCode });
-      rules = await getZoningRulesForZone({ city, zone_code: zoneCode });
-      if (!district) return notFound();
-    } catch (error) {
-      // Database connection may not be available during build
-      console.warn(`Database query failed during build for ${city}/${zoneCode}:`, error);
-      // Return notFound if we have a pool but query failed
-      if (pool) return notFound();
-    }
-  }
-
-  const overlays = district ? deriveOverlayFlags(city, district.properties) : [];
+  const zoneName = getZoneName(city, zoneCode);
 
   return (
     <div className="space-y-10">
@@ -58,6 +44,7 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
         <p className="text-lg text-gray-400 max-w-3xl">
           Allowed commercial uses, dimensional limits, and entitlement triggers. Residential-only guidance is intentionally excluded.
         </p>
+        {zoneName ? <div className="text-sm text-gray-400">{zoneName}</div> : null}
 
         <div className="flex flex-wrap gap-3">
           <Link href={`/commercial-zoning/${city}`} className="btn-ghost">
@@ -74,18 +61,8 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
         <h2 className="text-xl font-display font-semibold text-white">Allowed commercial uses</h2>
         <div className="grid gap-3 md:grid-cols-2">
           {UseTypes.map((use) => {
-            const permitted = rules?.permitted_uses?.includes(use) ?? false;
-            const conditional = rules?.conditional_uses?.includes(use) ?? false;
-            const prohibited = rules?.prohibited_uses?.includes(use) ?? false;
-            const status = permitted ? "Permitted" : conditional ? "Conditional" : prohibited ? "Prohibited" : "Unknown";
-            const badge =
-              status === "Permitted"
-                ? "badge-success"
-                : status === "Conditional"
-                  ? "badge-warning"
-                  : status === "Prohibited"
-                    ? "badge-error"
-                    : "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-gray-300";
+            const status = "Unknown";
+            const badge = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-gray-300";
 
             return (
               <div key={use} className="metric-card flex items-center justify-between gap-3">
@@ -95,11 +72,9 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
             );
           })}
         </div>
-        {!rules ? (
-          <div className="text-sm text-gray-400">
-            Populate `zoning_rules` to show permitted/conditional/prohibited uses for this district.
-          </div>
-        ) : null}
+        <div className="text-sm text-gray-400">
+          Populate `zoning_rules` to show permitted/conditional/prohibited uses for this district.
+        </div>
       </section>
 
       <section className="grid gap-6 md:grid-cols-2">
@@ -108,21 +83,19 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
           <div className="space-y-2 text-sm text-gray-300">
             <div className="data-row">
               <span className="text-gray-400">Height</span>
-              <span className="text-white">{rules?.max_height_ft ?? "—"} ft</span>
+              <span className="text-white">—</span>
             </div>
             <div className="data-row">
               <span className="text-gray-400">FAR / FSR</span>
-              <span className="text-white">{rules?.far ?? "—"}</span>
+              <span className="text-white">—</span>
             </div>
             <div className="data-row">
               <span className="text-gray-400">Lot coverage</span>
-              <span className="text-white">{rules?.lot_coverage_pct ?? "—"}%</span>
+              <span className="text-white">—</span>
             </div>
             <div className="data-row">
               <span className="text-gray-400">Setbacks</span>
-              <span className="text-white">
-                F:{rules?.setback_front_ft ?? "—"} S:{rules?.setback_side_ft ?? "—"} R:{rules?.setback_rear_ft ?? "—"}
-              </span>
+              <span className="text-white">—</span>
             </div>
           </div>
         </div>
@@ -132,15 +105,15 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
           <div className="text-sm text-gray-300 space-y-2">
             <div className="data-row">
               <span className="text-gray-400">Overlay flags</span>
-              <span className="text-white">{overlays.length > 0 ? overlays.join(", ") : "—"}</span>
+              <span className="text-white">—</span>
             </div>
             <div className="data-row">
               <span className="text-gray-400">Curated overlays</span>
-              <span className="text-white">{rules?.overlays?.length ? rules.overlays.join(", ") : "—"}</span>
+              <span className="text-white">—</span>
             </div>
           </div>
           <div className="text-sm text-gray-400">
-            Overlay flags come from zoning layer attributes when available; curate `zoning_rules.overlays` for higher fidelity.
+            Curate overlays and dimensional limits in `zoning_rules` for higher fidelity.
           </div>
         </div>
       </section>
@@ -153,25 +126,9 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
           <li>Overlays often add gating steps that change schedules more than drawings do.</li>
         </ul>
         <div className="text-xs text-gray-500">
-          Sources:{" "}
-          {district ? (
-            <a href={district.source_url} target="_blank" rel="noreferrer" className="underline hover:text-gray-300">
-              zoning layer
-            </a>
-          ) : (
-            "—"
-          )}{" "}
-          {rules ? (
-            <>
-              •{" "}
-              <a href={rules.source_url} target="_blank" rel="noreferrer" className="underline hover:text-gray-300">
-                ordinance reference
-              </a>
-            </>
-          ) : null}
+          Sources: curate zone sources in `zoning_rules.source_url` (and optionally include zoning layer source on the city page).
         </div>
       </section>
     </div>
   );
 }
-

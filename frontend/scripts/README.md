@@ -100,3 +100,15 @@ Limit to a city:
 Upserts curated rules into `zoning_rules` from a JSON array using the schema fields from `backend/db/migrations/001_init.sql`.
 
 `node scripts/import-zoning-rules-json.mjs --file /path/to/zoning_rules.json`
+
+## Export zoning index for SSG (recommended for Netlify)
+
+Netlify build workers often cannot reliably connect to Postgres for SSG. To keep `/commercial-zoning/*` pages statically generated, export a build-safe zoning index from your DB and commit it.
+
+This writes `src/lib/seo/zoningIndex.data.ts`:
+
+`DATABASE_URL=postgres://part3:part3@localhost:5432/part3 node scripts/export-zoning-index.mjs --limit-per-city 200`
+
+Or via npm:
+
+`DATABASE_URL=postgres://part3:part3@localhost:5432/part3 npm run export:zoning-index -- --limit-per-city 200`

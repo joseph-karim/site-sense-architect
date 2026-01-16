@@ -7,7 +7,7 @@ import {
   ToolSlugs,
   UseTypes
 } from "@/lib/seo/staticParams";
-import { getPool } from "@/lib/db/pool";
+import { ZoningIndexByCity } from "@/lib/seo/zoningIndex";
 
 export const runtime = "nodejs";
 
@@ -18,19 +18,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const urls: string[] = ["/"];
 
   const zonesByCity: Record<string, string[]> = { ...SampleZonesByCity };
-  const pool = getPool();
-  if (pool) {
-    try {
-      const res = await pool.query(`SELECT city, zone_code FROM zoning_districts GROUP BY city, zone_code`);
-      for (const row of res.rows) {
-        const city = String(row.city);
-        const zone = String(row.zone_code);
-        zonesByCity[city] = zonesByCity[city] ?? [];
-        if (!zonesByCity[city].includes(zone)) zonesByCity[city].push(zone);
-      }
-    } catch {
-      // ignore: keep sample zones
-    }
+  for (const city of Cities) {
+    const fromIndex = (ZoningIndexByCity[city] ?? []).map((z) => z.zone_code);
+    if (fromIndex.length > 0) zonesByCity[city] = fromIndex;
   }
 
   for (const city of Cities) {

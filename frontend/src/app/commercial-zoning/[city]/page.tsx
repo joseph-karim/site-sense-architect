@@ -3,10 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Building2, Layers, AlertTriangle, ArrowRight } from "lucide-react";
 import { Cities, isCity } from "@/lib/cities";
-import { getPool } from "@/lib/db/pool";
+import { getTopZonesForCity } from "@/lib/seo/zoningIndex";
 
 export const runtime = "nodejs";
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 export function generateStaticParams() {
   return Cities.map((city) => ({ city }));
@@ -26,28 +26,7 @@ export default async function CommercialZoningCityPage({ params }: { params: Pro
   const city = cityParam.toLowerCase();
   if (!isCity(city)) return notFound();
 
-  const pool = getPool();
-  let zones: any[] = [];
-  if (pool) {
-    try {
-      const result = await pool.query(
-        `
-        SELECT zone_code, zone_name
-        FROM zoning_districts
-        WHERE city = $1
-        GROUP BY zone_code, zone_name
-        ORDER BY zone_code ASC
-        LIMIT 40
-        `,
-        [city]
-      );
-      zones = result.rows;
-    } catch (error) {
-      // Database connection may not be available during build
-      console.warn(`Database query failed during build for ${city}:`, error);
-      zones = [];
-    }
-  }
+  const zones = getTopZonesForCity(city, 40);
 
   const cityName = city.charAt(0).toUpperCase() + city.slice(1);
 
@@ -133,8 +112,11 @@ export default async function CommercialZoningCityPage({ params }: { params: Pro
             <div className="col-span-8">Description</div>
           </div>
           {zones.length > 0 ? (
-            zones.map((z: any) => (
-              <div key={`${z.zone_code}-${z.zone_name}`} className="grid grid-cols-12 px-6 py-4 border-b border-white/10 last:border-0">
+            zones.map((z) => (
+              <div
+                key={`${z.zone_code}-${z.zone_name}`}
+                className="grid grid-cols-12 px-6 py-4 border-b border-white/10 last:border-0"
+              >
                 <div className="col-span-4">
                   <Link
                     href={`/commercial-zoning/${city}/${encodeURIComponent(String(z.zone_code))}`}
@@ -148,7 +130,7 @@ export default async function CommercialZoningCityPage({ params }: { params: Pro
             ))
           ) : (
             <div className="px-6 py-6 text-sm text-gray-400">
-              Load `zoning_districts` for {city} to populate this table.
+              Zoning index not configured for {city}. Add zone codes/names to `frontend/src/lib/seo/zoningIndex.ts`.
             </div>
           )}
         </div>
@@ -180,4 +162,3 @@ export default async function CommercialZoningCityPage({ params }: { params: Pro
     </div>
   );
 }
-

@@ -42,8 +42,14 @@ export function getPool(): pg.Pool | null {
   if (!globalThis.__pgPool) {
     // pg library automatically handles SSL from connection string parameters
     // Most cloud providers include ?sslmode=require in their connection strings
-    globalThis.__pgPool = new Pool({ connectionString });
+    globalThis.__pgPool = new Pool({
+      connectionString,
+      // Prevent long hangs (e.g. CI/build or misconfigured networking)
+      connectionTimeoutMillis: 5_000,
+      query_timeout: 15_000,
+      max: 5,
+      idleTimeoutMillis: 30_000
+    });
   }
   return globalThis.__pgPool;
 }
-

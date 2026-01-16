@@ -86,7 +86,7 @@ Admin:
 ## SEO routes
 
 - `/commercial-zoning/[city]`
-- `/commercial-zoning/[city]/[zoneCode]` (wired to DB when populated)
+- `/commercial-zoning/[city]/[zoneCode]` (SSG for a curated/top set)
 - `/commercial-permits/[city]`
 - `/commercial-snapshots/[city]/[useType]` (generalized, non-address previews)
 - `/tools/commercial-zoning-snapshot`
@@ -96,6 +96,15 @@ Admin:
 - `/report/[artifactSlug]`
 
 Legacy routes (`/zoning/*`, `/permits/*`, `/zoning/*/use/*`) redirect into the canonical commercial routes and are intentionally excluded from the sitemap to avoid duplicate indexing.
+
+### Note on SSG vs DB connectivity (Netlify-safe)
+
+Netlify build workers should not depend on direct Postgres connectivity for SSG pages (timeouts/ACLs are common).
+To keep commercial zoning pages statically generated, the build uses a small, build-safe zoning index:
+
+- `frontend/src/lib/seo/zoningIndex.ts`
+
+Populate that file with a larger list of `(zone_code, zone_name)` (exported from your DB) to increase the number of SSG zone pages. The code currently pre-renders the “top 40” zones per city.
 
 ## Implementation notes
 
