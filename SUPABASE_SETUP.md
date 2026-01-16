@@ -4,8 +4,23 @@ This guide covers two methods to set up your Supabase database for the Part3 Ent
 
 ## Method 1: Direct Database Connection (Recommended - Simpler)
 
-### Step 1: Get Your Connection String
+### Step 1: Add Credentials to .env File
 
+Add your Supabase credentials to a `.env` file in the project root or `frontend/.env.local`:
+
+```bash
+# In .env or frontend/.env.local
+SUPABASE_DATABASE_URL="postgresql://postgres:your-password@db.ugrbscrgztlqrptavsxp.supabase.co:5432/postgres"
+# Or use DATABASE_URL (both work)
+DATABASE_URL="postgresql://postgres:your-password@db.ugrbscrgztlqrptavsxp.supabase.co:5432/postgres"
+
+# Optional: Other Supabase credentials (for future use)
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+SUPABASE_ANON_KEY="your-anon-key"
+SUPABASE_JWT_SECRET="your-jwt-secret"
+```
+
+**To get your connection string:**
 1. Go to your Supabase dashboard: https://supabase.com/dashboard/project/ugrbscrgztlqrptavsxp/settings/database
 2. Scroll to "Connection string" section
 3. For local setup: Select "URI" tab
@@ -20,6 +35,13 @@ This guide covers two methods to set up your Supabase database for the Part3 Ent
 
 ### Step 2: Run Setup Script
 
+The script will automatically load from `.env` files:
+
+```bash
+./scripts/setup-supabase.sh
+```
+
+Or if you prefer to export manually:
 ```bash
 export SUPABASE_DATABASE_URL='your-connection-string-here'
 ./scripts/setup-supabase.sh

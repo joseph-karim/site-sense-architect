@@ -6,12 +6,24 @@ They read local files (no network access required) and load data into Postgres f
 
 ## Environment Variables
 
-Set `DATABASE_URL` before running any script:
+Set `DATABASE_URL` or `SUPABASE_DATABASE_URL` before running any script:
 
+**Option 1: Using .env file (recommended)**
+```bash
+# Add to .env or frontend/.env.local:
+DATABASE_URL="postgres://USER:PASSWORD@localhost:5432/part3"
+# Or for Supabase:
+SUPABASE_DATABASE_URL="postgresql://postgres:password@db.project.supabase.co:5432/postgres"
+```
+
+**Option 2: Export in shell**
 ```bash
 export DATABASE_URL="postgres://USER:PASSWORD@localhost:5432/part3"
 # For local docker-compose: postgres://part3:part3@localhost:5432/part3
+# For Supabase: export SUPABASE_DATABASE_URL="your-connection-string"
 ```
+
+**Note:** Scripts will use `SUPABASE_DATABASE_URL` if available, otherwise fall back to `DATABASE_URL`.
 
 ## Import zoning districts (GeoJSON)
 

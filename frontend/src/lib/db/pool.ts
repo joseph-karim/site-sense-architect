@@ -9,11 +9,13 @@ declare global {
 }
 
 export function getPool(): pg.Pool | null {
-  if (!env.DATABASE_URL) return null;
+  // Prefer SUPABASE_DATABASE_URL if available, fallback to DATABASE_URL
+  const connectionString = env.SUPABASE_DATABASE_URL || env.DATABASE_URL;
+  if (!connectionString) return null;
   if (!globalThis.__pgPool) {
     // pg library automatically handles SSL from connection string parameters
     // Most cloud providers include ?sslmode=require in their connection strings
-    globalThis.__pgPool = new Pool({ connectionString: env.DATABASE_URL });
+    globalThis.__pgPool = new Pool({ connectionString });
   }
   return globalThis.__pgPool;
 }

@@ -50,8 +50,9 @@ function asStringArray(value) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) throw new Error("DATABASE_URL is required");
+  // Prefer SUPABASE_DATABASE_URL, fallback to DATABASE_URL
+  const databaseUrl = process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error("DATABASE_URL or SUPABASE_DATABASE_URL is required");
 
   const file = requireArg(args, "file");
   const raw = await fs.readFile(file, "utf8");
