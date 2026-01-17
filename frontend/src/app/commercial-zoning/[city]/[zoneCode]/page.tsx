@@ -7,7 +7,7 @@ import { getZoneName, getTopZonesForCity } from "@/lib/seo/zoningIndex";
 import { UseTypes } from "@/lib/seo/staticParams";
 
 export const runtime = "nodejs";
-export const revalidate = 86400;
+export const dynamic = "force-dynamic";
 
 export function generateStaticParams() {
   // SSG a limited, high-value set of zone pages; expand by populating the zoning index.
@@ -30,6 +30,28 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
 
   const zoneCode = decodeURIComponent(zoneCodeParam).toUpperCase();
   const zoneName = getZoneName(city, zoneCode);
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'commercial-zoning/[city]/[zoneCode]/page.tsx:26',message:'CommercialZonePage entry',data:{city,zoneCode,zoneName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
+  // Fetch zoning rules from database
+  const { getZoningRulesForZone } = await import("@/lib/services/zoningDb");
+  let rules = null;
+  try {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'commercial-zoning/[city]/[zoneCode]/page.tsx:34',message:'Attempting to fetch zoning rules',data:{city,zoneCode},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    rules = await getZoningRulesForZone({ city, zone_code: zoneCode });
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'commercial-zoning/[city]/[zoneCode]/page.tsx:38',message:'Zoning rules fetch result',data:{hasRules:!!rules,hasPermittedUses:!!rules?.permitted_uses,permittedUsesCount:rules?.permitted_uses?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+  } catch (e: any) {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'commercial-zoning/[city]/[zoneCode]/page.tsx:42',message:'Error fetching zoning rules',data:{error:String(e?.message),errorCode:e?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    // Continue rendering even if fetch fails
+  }
 
   return (
     <div className="space-y-10">
@@ -61,20 +83,35 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
         <h2 className="text-xl font-display font-semibold text-white">Allowed commercial uses</h2>
         <div className="grid gap-3 md:grid-cols-2">
           {UseTypes.map((use) => {
-            const status = "Unknown";
-            const badge = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-gray-300";
+            let status = "Unknown";
+            let badgeClass = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-gray-300";
+            
+            if (rules) {
+              if (rules.permitted_uses?.includes(use)) {
+                status = "Permitted";
+                badgeClass = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-300";
+              } else if (rules.conditional_uses?.includes(use)) {
+                status = "Conditional";
+                badgeClass = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300";
+              } else if (rules.prohibited_uses?.includes(use)) {
+                status = "Prohibited";
+                badgeClass = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300";
+              }
+            }
 
             return (
               <div key={use} className="metric-card flex items-center justify-between gap-3">
                 <div className="text-sm text-white font-medium capitalize">{use.replace("-", " ")}</div>
-                <span className={badge}>{status}</span>
+                <span className={badgeClass}>{status}</span>
               </div>
             );
           })}
         </div>
-        <div className="text-sm text-gray-400">
-          Populate `zoning_rules` to show permitted/conditional/prohibited uses for this district.
-        </div>
+        {!rules && (
+          <div className="text-sm text-gray-400">
+            Populate `zoning_rules` to show permitted/conditional/prohibited uses for this district.
+          </div>
+        )}
       </section>
 
       <section className="grid gap-6 md:grid-cols-2">
@@ -83,19 +120,25 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
           <div className="space-y-2 text-sm text-gray-300">
             <div className="data-row">
               <span className="text-gray-400">Height</span>
-              <span className="text-white">—</span>
+              <span className="text-white">
+                {rules?.max_height_ft ? `${rules.max_height_ft} ft` : rules?.max_height_stories ? `${rules.max_height_stories} stories` : "—"}
+              </span>
             </div>
             <div className="data-row">
               <span className="text-gray-400">FAR / FSR</span>
-              <span className="text-white">—</span>
+              <span className="text-white">{rules?.far ? String(rules.far) : "—"}</span>
             </div>
             <div className="data-row">
               <span className="text-gray-400">Lot coverage</span>
-              <span className="text-white">—</span>
+              <span className="text-white">{rules?.lot_coverage_pct ? `${rules.lot_coverage_pct}%` : "—"}</span>
             </div>
             <div className="data-row">
               <span className="text-gray-400">Setbacks</span>
-              <span className="text-white">—</span>
+              <span className="text-white">
+                {rules?.setback_front_ft || rules?.setback_side_ft || rules?.setback_rear_ft
+                  ? `Front: ${rules.setback_front_ft ?? "—"} ft, Side: ${rules.setback_side_ft ?? "—"} ft, Rear: ${rules.setback_rear_ft ?? "—"} ft`
+                  : "—"}
+              </span>
             </div>
           </div>
         </div>
@@ -105,16 +148,22 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
           <div className="text-sm text-gray-300 space-y-2">
             <div className="data-row">
               <span className="text-gray-400">Overlay flags</span>
-              <span className="text-white">—</span>
+              <span className="text-white">
+                {rules?.overlays && rules.overlays.length > 0 ? rules.overlays.join(", ") : "—"}
+              </span>
             </div>
             <div className="data-row">
               <span className="text-gray-400">Curated overlays</span>
-              <span className="text-white">—</span>
+              <span className="text-white">
+                {rules?.overlays && rules.overlays.length > 0 ? rules.overlays.join(", ") : "—"}
+              </span>
             </div>
           </div>
-          <div className="text-sm text-gray-400">
-            Curate overlays and dimensional limits in `zoning_rules` for higher fidelity.
-          </div>
+          {!rules && (
+            <div className="text-sm text-gray-400">
+              Curate overlays and dimensional limits in `zoning_rules` for higher fidelity.
+            </div>
+          )}
         </div>
       </section>
 

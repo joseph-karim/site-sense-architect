@@ -35,3 +35,4 @@ backend/data/
 data/Greater_Austin_Fully_Developed_Floodplain.csv
 data/Land_Use_Inventory.csv
 **/*.csv 
+.env.local
