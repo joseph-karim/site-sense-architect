@@ -7,7 +7,7 @@
 
 # Use Netlify's Next.js runtime plugin (handles App Router + API routes automatically)
 [[plugins]]
-  package = "@netlify/plugin-nextjs@4"
+  package = "@netlify/plugin-nextjs"
 
 # Note: SUPABASE_DB_USER, SUPABASE_DB_PORT, SUPABASE_DB_SSL are environment variable names,
 # not secrets. These are configuration keys, not actual credential values.
