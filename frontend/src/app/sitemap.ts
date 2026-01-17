@@ -10,9 +10,12 @@ import {
 import { ZoningIndexByCity } from "@/lib/seo/zoningIndex";
 
 export const runtime = "nodejs";
+export const dynamic = "force-static";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${env.PORT ?? "3000"}`;
+  // During build, use a placeholder if NEXT_PUBLIC_APP_URL is not set
+  // This prevents hanging during static generation
+  const base = env.NEXT_PUBLIC_APP_URL ?? "https://part3-productledseo.netlify.app";
   const now = new Date();
 
   const urls: string[] = ["/"];
