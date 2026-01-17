@@ -68,6 +68,7 @@ export async function getZoningRulesForZone(input: {
   }
 
   try {
+    // Use UPPER for case-insensitive matching
     const result = await pool.query(
       `
       SELECT
@@ -87,7 +88,7 @@ export async function getZoningRulesForZone(input: {
         red_flags,
         source_url
       FROM zoning_rules
-      WHERE city = $1 AND zone_code = $2
+      WHERE LOWER(city) = LOWER($1) AND UPPER(zone_code) = UPPER($2)
       LIMIT 1
       `,
       [input.city, input.zone_code]
