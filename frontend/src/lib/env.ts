@@ -1,20 +1,27 @@
 import { z } from "zod";
 
 const ServerEnvSchema = z.object({
+  // PostgreSQL connection string for database queries
   DATABASE_URL: z.string().optional(),
-  // Supabase: Full connection string (preferred if available)
-  SUPABASE_DATABASE_URL: z.string().optional(),
-  // Supabase: Individual connection components (alternative to URL)
+  DATABASE_CONNECTION_STRING: z.string().optional(), // Alias, clearer naming
+  
+  // Supabase project URL (for API calls): https://xxx.supabase.co
+  SUPABASE_URL: z.string().optional(),
+  
+  // Supabase: Individual connection components (alternative to connection string)
   SUPABASE_DB_HOST: z.string().optional(),
   SUPABASE_DB_PORT: z.string().optional(),
   SUPABASE_DB_USER: z.string().optional(),
   SUPABASE_DB_PASSWORD: z.string().optional(),
   SUPABASE_DB_NAME: z.string().optional(),
   SUPABASE_DB_SSL: z.string().optional(), // "require", "prefer", "disable", etc.
+  
   // Supabase: API keys
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_JWT_SECRET: z.string().optional(),
+  
+  // Other services
   REDIS_URL: z.string().optional(),
   MAPBOX_TOKEN: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().optional(),
@@ -23,7 +30,8 @@ const ServerEnvSchema = z.object({
 
 export const env = ServerEnvSchema.parse({
   DATABASE_URL: process.env.DATABASE_URL,
-  SUPABASE_DATABASE_URL: process.env.SUPABASE_DATABASE_URL,
+  DATABASE_CONNECTION_STRING: process.env.DATABASE_CONNECTION_STRING,
+  SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_DB_HOST: process.env.SUPABASE_DB_HOST,
   SUPABASE_DB_PORT: process.env.SUPABASE_DB_PORT,
   SUPABASE_DB_USER: process.env.SUPABASE_DB_USER,

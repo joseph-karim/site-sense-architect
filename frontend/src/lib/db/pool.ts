@@ -14,8 +14,8 @@ declare global {
  */
 function buildConnectionString(): string | null {
   // Prefer full connection strings
-  if (env.SUPABASE_DATABASE_URL) {
-    return env.SUPABASE_DATABASE_URL;
+  if (env.DATABASE_CONNECTION_STRING) {
+    return env.DATABASE_CONNECTION_STRING;
   }
   if (env.DATABASE_URL) {
     return env.DATABASE_URL;
