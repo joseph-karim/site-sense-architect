@@ -31,23 +31,12 @@ export async function createZoningSnapshotArtifact(input: {
         }
       : await geocodeAddress(input.address);
 
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'artifactService.ts:34',message:'createZoningSnapshotArtifact entry',data:{city:input.city,address:input.address,use_type:input.use_type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   const poolConfigured = Boolean(getPool());
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'artifactService.ts:36',message:'Pool check',data:{poolConfigured},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   let district = null;
   try {
     district = await findZoningDistrictByPoint({ city: input.city, lat: geocode.lat, lng: geocode.lng });
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'artifactService.ts:40',message:'District lookup result',data:{hasDistrict:!!district,zoneCode:district?.zone_code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-  } catch (e: any) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'artifactService.ts:44',message:'District lookup error',data:{error:String(e?.message),errorCode:e?.code,errorStack:e?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
+  } catch (e: unknown) {
+    console.error('Error finding zoning district:', e);
     throw e;
   }
 
@@ -58,17 +47,9 @@ export async function createZoningSnapshotArtifact(input: {
   let rules = null;
   if (district) {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'artifactService.ts:45',message:'Fetching zoning rules',data:{city:input.city,zone_code:district.zone_code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       rules = await getZoningRulesForZone({ city: input.city, zone_code: district.zone_code });
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'artifactService.ts:48',message:'Zoning rules fetch result',data:{hasRules:!!rules},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-    } catch (e: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'artifactService.ts:52',message:'Zoning rules fetch error',data:{error:String(e?.message),errorCode:e?.code,errorStack:e?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
+    } catch (e: unknown) {
+      console.error('Error fetching zoning rules:', e);
       throw e;
     }
   }

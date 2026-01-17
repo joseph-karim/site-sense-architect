@@ -62,21 +62,12 @@ export async function getZoningRulesForZone(input: {
   city: string;
   zone_code: string;
 }): Promise<ZoningRuleRow | null> {
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'zoningDb.ts:61',message:'getZoningRulesForZone entry',data:{city:input.city,zone_code:input.zone_code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   const pool = getPool();
   if (!pool) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'zoningDb.ts:66',message:'getZoningRulesForZone - pool is null',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     return null;
   }
 
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'zoningDb.ts:70',message:'Executing query',data:{city:input.city,zone_code:input.zone_code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     const result = await pool.query(
       `
       SELECT
@@ -101,19 +92,10 @@ export async function getZoningRulesForZone(input: {
       `,
       [input.city, input.zone_code]
     );
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'zoningDb.ts:92',message:'Query result',data:{rowCount:result.rows.length,hasRow:!!result.rows[0]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     const row = result.rows[0];
     if (!row) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'zoningDb.ts:95',message:'No row found',data:{city:input.city,zone_code:input.zone_code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       return null;
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'zoningDb.ts:99',message:'Row found, returning data',data:{zone_code:row.zone_code,hasPermittedUses:!!row.permitted_uses,permittedUsesCount:Array.isArray(row.permitted_uses)?row.permitted_uses.length:0,hasHeight:!!row.max_height_ft},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     return {
       zone_code: String(row.zone_code),
@@ -132,10 +114,8 @@ export async function getZoningRulesForZone(input: {
       red_flags: row.red_flags ?? [],
       source_url: String(row.source_url)
     };
-  } catch (e: any) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'zoningDb.ts:113',message:'Query error',data:{error:String(e?.message),errorCode:e?.code,errorStack:e?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
+  } catch (e: unknown) {
+    console.error('Error fetching zoning rules:', e);
     throw e;
   }
 }

@@ -31,25 +31,13 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
   const zoneCode = decodeURIComponent(zoneCodeParam).toUpperCase();
   const zoneName = getZoneName(city, zoneCode);
   
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'commercial-zoning/[city]/[zoneCode]/page.tsx:26',message:'CommercialZonePage entry',data:{city,zoneCode,zoneName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-  
   // Fetch zoning rules from database
   const { getZoningRulesForZone } = await import("@/lib/services/zoningDb");
   let rules = null;
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'commercial-zoning/[city]/[zoneCode]/page.tsx:34',message:'Attempting to fetch zoning rules',data:{city,zoneCode},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     rules = await getZoningRulesForZone({ city, zone_code: zoneCode });
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'commercial-zoning/[city]/[zoneCode]/page.tsx:38',message:'Zoning rules fetch result',data:{hasRules:!!rules,hasPermittedUses:!!rules?.permitted_uses,permittedUsesCount:rules?.permitted_uses?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-  } catch (e: any) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/df048ba2-fede-4079-bdcd-da95fd010d48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'commercial-zoning/[city]/[zoneCode]/page.tsx:42',message:'Error fetching zoning rules',data:{error:String(e?.message),errorCode:e?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
+  } catch (e: unknown) {
+    console.error('Error fetching zoning rules:', e);
     // Continue rendering even if fetch fails
   }
 
