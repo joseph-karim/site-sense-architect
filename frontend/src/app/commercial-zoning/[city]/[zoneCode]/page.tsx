@@ -1,25 +1,46 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, Building2 } from "lucide-react";
-import { Cities, isCity } from "@/lib/cities";
+import { ArrowRight, Building2, AlertCircle } from "lucide-react";
+import { Cities, isCity, type City } from "@/lib/cities";
 import { getZoneName, getTopZonesForCity } from "@/lib/seo/zoningIndex";
 import { UseTypes } from "@/lib/seo/staticParams";
+import { getZoningByCode, type ZoningSnapshotData } from "@/lib/data/entitlementDataService";
+import { getZoneDisplayName } from "@/lib/data/zoneNameMappings";
 
+// SSG Configuration for SEO
+// - Pages are pre-rendered at build time using generateStaticParams
+// - ISR revalidates every 24 hours to pick up database updates
+// - Zone names come from static zoningIndex.data.ts (no DB needed at build)
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export const revalidate = 86400; // ISR: revalidate every 24 hours
 
 export function generateStaticParams() {
-  // SSG a limited, high-value set of zone pages; expand by populating the zoning index.
-  return Cities.flatMap((city) => getTopZonesForCity(city, 40).map((z) => ({ city, zoneCode: z.zone_code })));
+  // SSG all zones from the static index - this runs at build time
+  // The zoningIndex.data.ts file is pre-generated and doesn't require DB
+  return Cities.flatMap((city) =>
+    getTopZonesForCity(city, 200).map((z) => ({
+      city,
+      zoneCode: encodeURIComponent(z.zone_code)
+    }))
+  );
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ city: string; zoneCode: string }> }): Promise<Metadata> {
-  const { city, zoneCode } = await params;
+  const { city, zoneCode: rawZoneCode } = await params;
+  const zoneCode = decodeURIComponent(rawZoneCode).toUpperCase();
   const cityName = city.charAt(0).toUpperCase() + city.slice(1);
+
+  // Use static zone name from index, fallback to zone mapping
+  const zoneName = getZoneName(city as City, zoneCode) || getZoneDisplayName(city as City, zoneCode);
+
   return {
-    title: `${zoneCode} zoning district — commercial projects in ${cityName} | Part3`,
-    description: `Allowed commercial uses, dimensional limits, and entitlement triggers for ${zoneCode} in ${cityName}.`
+    title: `${zoneCode} Zoning District — ${zoneName} | Commercial Projects in ${cityName} | Part3`,
+    description: `Allowed commercial uses, dimensional limits, and entitlement triggers for ${zoneCode} (${zoneName}) in ${cityName}. Height limits, FAR, setbacks, parking requirements, and overlay flags.`,
+    openGraph: {
+      title: `${zoneCode} Zoning — ${cityName}`,
+      description: `Commercial zoning rules for ${zoneCode} in ${cityName}`,
+    }
   };
 }
 
@@ -29,17 +50,22 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
   if (!isCity(city)) return notFound();
 
   const zoneCode = decodeURIComponent(zoneCodeParam).toUpperCase();
-  const zoneName = getZoneName(city, zoneCode);
-  
-  // Fetch zoning rules from database
-  const { getZoningRulesForZone } = await import("@/lib/services/zoningDb");
-  let rules = null;
+
+  // Get zone name from static index (available at build time)
+  const staticZoneName = getZoneName(city, zoneCode);
+
+  // Fetch detailed zoning data from SSL data service
+  // This will use database if available, otherwise returns partial/unavailable state
+  let zoningData: ZoningSnapshotData | null = null;
   try {
-    rules = await getZoningRulesForZone({ city, zone_code: zoneCode });
+    zoningData = await getZoningByCode({ city, zone_code: zoneCode });
   } catch (e: unknown) {
-    console.error('Error fetching zoning rules:', e);
-    // Continue rendering even if fetch fails
+    console.error('Error fetching zoning data:', e);
   }
+
+  // Use static name as primary, SSL data as fallback
+  const zoneName = staticZoneName || zoningData?.zoning_district?.zone_name || getZoneDisplayName(city, zoneCode);
+  const rules = zoningData?.availability === "available" || zoningData?.availability === "partial" ? zoningData : null;
 
   return (
     <div className="space-y-10">
@@ -67,21 +93,34 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
         </div>
       </header>
 
+      {/* Data availability notice */}
+      {zoningData?.availability === "unavailable" && (
+        <div className="card-glass p-4 border border-yellow-500/20 bg-yellow-500/5">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-gray-300">
+              <p className="font-medium text-yellow-300">Detailed zoning rules not yet available</p>
+              <p className="mt-1">Contact the local planning department to verify uses and dimensional limits for {zoneCode}.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="card-glass p-6 space-y-4">
         <h2 className="text-xl font-display font-semibold text-white">Allowed commercial uses</h2>
         <div className="grid gap-3 md:grid-cols-2">
           {UseTypes.map((use) => {
             let status = "Unknown";
             let badgeClass = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-gray-300";
-            
+
             if (rules) {
-              if (rules.permitted_uses?.includes(use)) {
+              if (rules.allowed_uses.permitted?.includes(use)) {
                 status = "Permitted";
                 badgeClass = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-300";
-              } else if (rules.conditional_uses?.includes(use)) {
+              } else if (rules.allowed_uses.conditional?.includes(use)) {
                 status = "Conditional";
                 badgeClass = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300";
-              } else if (rules.prohibited_uses?.includes(use)) {
+              } else if (rules.allowed_uses.prohibited?.includes(use)) {
                 status = "Prohibited";
                 badgeClass = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300";
               }
@@ -95,9 +134,9 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
             );
           })}
         </div>
-        {!rules && (
+        {zoningData?.availability === "partial" && (
           <div className="text-sm text-gray-400">
-            Populate `zoning_rules` to show permitted/conditional/prohibited uses for this district.
+            Zone identified but detailed use rules not yet curated. Verify with local planning department.
           </div>
         )}
       </section>
@@ -109,7 +148,7 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
             <div className="data-row">
               <span className="text-gray-400">Height</span>
               <span className="text-white">
-                {rules?.max_height_ft ? `${rules.max_height_ft} ft` : rules?.max_height_stories ? `${rules.max_height_stories} stories` : "—"}
+                {rules?.height_limit.max_height_ft ? `${rules.height_limit.max_height_ft} ft` : rules?.height_limit.max_height_stories ? `${rules.height_limit.max_height_stories} stories` : "—"}
               </span>
             </div>
             <div className="data-row">
@@ -123,8 +162,8 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
             <div className="data-row">
               <span className="text-gray-400">Setbacks</span>
               <span className="text-white">
-                {rules?.setback_front_ft || rules?.setback_side_ft || rules?.setback_rear_ft
-                  ? `Front: ${rules.setback_front_ft ?? "—"} ft, Side: ${rules.setback_side_ft ?? "—"} ft, Rear: ${rules.setback_rear_ft ?? "—"} ft`
+                {rules?.setbacks_ft.front || rules?.setbacks_ft.side || rules?.setbacks_ft.rear
+                  ? `Front: ${rules.setbacks_ft.front ?? "—"} ft, Side: ${rules.setbacks_ft.side ?? "—"} ft, Rear: ${rules.setbacks_ft.rear ?? "—"} ft`
                   : "—"}
               </span>
             </div>
@@ -137,19 +176,20 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
             <div className="data-row">
               <span className="text-gray-400">Overlay flags</span>
               <span className="text-white">
-                {rules?.overlays && rules.overlays.length > 0 ? rules.overlays.join(", ") : "—"}
+                {rules?.overlay_flags && rules.overlay_flags.length > 0 ? rules.overlay_flags.join(", ") : "—"}
               </span>
             </div>
             <div className="data-row">
-              <span className="text-gray-400">Curated overlays</span>
+              <span className="text-gray-400">Red flags</span>
               <span className="text-white">
-                {rules?.overlays && rules.overlays.length > 0 ? rules.overlays.join(", ") : "—"}
+                {rules?.red_flags && rules.red_flags.length > 0 ? rules.red_flags.join(", ") : "—"}
               </span>
             </div>
           </div>
-          {!rules && (
-            <div className="text-sm text-gray-400">
-              Curate overlays and dimensional limits in `zoning_rules` for higher fidelity.
+          {rules?.parking?.summary && (
+            <div className="data-row mt-3">
+              <span className="text-gray-400">Parking</span>
+              <span className="text-white text-sm">{rules.parking.summary}</span>
             </div>
           )}
         </div>
@@ -162,10 +202,55 @@ export default async function CommercialZonePage({ params }: { params: Promise<{
           <li>Track parking/loading assumptions as risks before CA kickoff.</li>
           <li>Overlays often add gating steps that change schedules more than drawings do.</li>
         </ul>
-        <div className="text-xs text-gray-500">
-          Sources: curate zone sources in `zoning_rules.source_url` (and optionally include zoning layer source on the city page).
-        </div>
+        {rules?.data_freshness?.sources && rules.data_freshness.sources.length > 0 && (
+          <div className="text-xs text-gray-500 mt-4">
+            Sources: {rules.data_freshness.sources.map((src, i) => (
+              <span key={i}>
+                {i > 0 && ", "}
+                <a href={src} target="_blank" rel="noopener noreferrer" className="text-accent-400 hover:underline">
+                  {new URL(src).hostname}
+                </a>
+              </span>
+            ))}
+            {rules.data_freshness.last_updated && (
+              <span className="ml-2">• Last updated: {rules.data_freshness.last_updated}</span>
+            )}
+          </div>
+        )}
+        {(!rules?.data_freshness?.sources || rules.data_freshness.sources.length === 0) && (
+          <div className="text-xs text-gray-500">
+            Data sourced from municipal zoning ordinances. Verify with local planning department for most current requirements.
+          </div>
+        )}
       </section>
+
+      {/* Structured data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": `${zoneCode} Zoning District - ${zoneName}`,
+            "description": `Commercial zoning rules for ${zoneCode} in ${city.charAt(0).toUpperCase() + city.slice(1)}`,
+            "author": {
+              "@type": "Organization",
+              "name": "Part3"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Part3"
+            },
+            "mainEntityOfPage": {
+              "@type": "WebPage"
+            },
+            "about": {
+              "@type": "Place",
+              "name": `${zoneCode} Zoning District, ${city.charAt(0).toUpperCase() + city.slice(1)}`
+            }
+          })
+        }}
+      />
     </div>
   );
 }
