@@ -1,4 +1,18 @@
+/**
+ * DEPRECATED: Mock Zoning Data
+ *
+ * This file previously contained fake/mock zoning data used as fallback.
+ * It has been replaced by the SSL (Single Source of Logic) data service.
+ *
+ * DO NOT USE THIS FILE FOR NEW CODE.
+ * Use `@/lib/data/entitlementDataService` instead.
+ *
+ * This file now returns empty "unavailable" states to make it clear
+ * when real data is missing.
+ */
+
 import type { City } from "@/lib/cities";
+import { getZoneDisplayName } from "@/lib/data/zoneNameMappings";
 
 export type ZoningSnapshotOutput = {
   zoning_district: { zone_code: string; zone_name: string; ordinance_url: string };
@@ -14,41 +28,40 @@ export type ZoningSnapshotOutput = {
   disclaimer: string;
 };
 
-export function mockZoningSnapshot(city: City, useType: string): ZoningSnapshotOutput {
-  const zone_code = city === "seattle" ? "NC3-65" : city === "austin" ? "CS" : "B3-2";
-  const zone_name =
-    city === "seattle"
-      ? "Neighborhood Commercial 3 (65')"
-      : city === "austin"
-        ? "Commercial Services"
-        : "Community Shopping District";
-
+/**
+ * Returns an unavailable zoning snapshot.
+ * This function is called when database data is not available.
+ *
+ * @deprecated Use getZoningSnapshot from @/lib/data/entitlementDataService instead
+ */
+export function mockZoningSnapshot(city: City, _useType: string): ZoningSnapshotOutput {
+  // Return a clear "data unavailable" state - NOT fake data
   return {
     zoning_district: {
-      zone_code,
-      zone_name,
-      ordinance_url: "https://example.com/ordinance"
+      zone_code: "UNAVAILABLE",
+      zone_name: "Zoning Data Not Available",
+      ordinance_url: ""
     },
     allowed_uses: {
-      permitted: ["office", "retail", "mixed-use"].filter(Boolean),
-      conditional: ["education", "healthcare", "civic"],
-      prohibited: ["residential-only"]
+      permitted: [],
+      conditional: [],
+      prohibited: []
     },
-    height_limit: { max_height_ft: city === "seattle" ? 65 : null, max_height_stories: null },
-    far: city === "seattle" ? 4.5 : null,
-    lot_coverage_pct: 85,
-    setbacks_ft: { front: 0, side: 0, rear: 0 },
+    height_limit: { max_height_ft: null, max_height_stories: null },
+    far: null,
+    lot_coverage_pct: null,
+    setbacks_ft: { front: null, side: null, rear: null },
     parking: {
-      summary: `Varies by use; verify "${useType}" requirements with local code.`,
-      reductions: ["Transit overlay reductions may apply"]
+      summary: `Zoning data not available for ${city}. Contact the local planning department for accurate information.`,
+      reductions: []
     },
-    overlay_flags: ["design_review"],
-    red_flags: ["Design review adds 4–8 weeks", "Ground floor retail may be required"],
+    overlay_flags: [],
+    red_flags: ["Zoning data is not available - verify with local planning department"],
     data_freshness: {
-      sources: ["Municipal ordinance", "City open data zoning layer"],
+      sources: [],
       last_updated: new Date().toISOString().slice(0, 10)
     },
     disclaimer:
-      "This summary is for informational purposes only. Verify all constraints with the local planning department before proceeding."
+      "Zoning data not available. This is not a substitute for consulting the local planning department."
   };
 }
