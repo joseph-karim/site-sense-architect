@@ -208,6 +208,14 @@ export function FitAnalysisClient({ mapboxToken }: { mapboxToken?: string }) {
       }
 
       const extracted = data.requirements;
+      // Safely handle arrays that might come back as non-arrays from AI
+      const sustainabilityTargets = Array.isArray(extracted.sustainabilityTargets) 
+        ? extracted.sustainabilityTargets 
+        : [];
+      const specialRequirements = Array.isArray(extracted.specialRequirements)
+        ? extracted.specialRequirements
+        : [];
+      
       setRequirements({
         projectName: extracted.projectName,
         proposedUse: extracted.proposedUse || "",
@@ -216,12 +224,9 @@ export function FitAnalysisClient({ mapboxToken }: { mapboxToken?: string }) {
         stories: extracted.stories,
         parkingStalls: extracted.parkingStalls,
         timeline: extracted.timeline,
-        additionalNotes: [
-          ...(extracted.sustainabilityTargets || []),
-          ...(extracted.specialRequirements || []),
-        ].join(". "),
+        additionalNotes: [...sustainabilityTargets, ...specialRequirements].join(". "),
       });
-      setRawExtracts(extracted.rawExtracts || []);
+      setRawExtracts(Array.isArray(extracted.rawExtracts) ? extracted.rawExtracts : []);
       setStep("confirm");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to parse RFQ");
