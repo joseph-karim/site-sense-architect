@@ -70,24 +70,48 @@ export function AddressLookupClient({ mapboxToken }: { mapboxToken?: string }) {
 
     try {
       // First geocode the address
-      let lat: number, lng: number;
+      let lat = 0;
+      let lng = 0;
+      let geocodeSuccess = false;
 
+      // Try Mapbox geocoding if token available
       if (mapboxToken) {
-        const geocodeRes = await fetch(
-          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchAddress)}.json?access_token=${mapboxToken}&country=US&types=address`
-        );
-        const geocodeData = await geocodeRes.json();
+        try {
+          const geocodeRes = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchAddress)}.json?access_token=${mapboxToken}&country=US&types=address,place`
+          );
+          const geocodeData = await geocodeRes.json();
 
-        if (!geocodeData.features || geocodeData.features.length === 0) {
-          throw new Error("Address not found. Please check the address and try again.");
+          if (geocodeData.features && geocodeData.features.length > 0) {
+            lng = geocodeData.features[0].center[0];
+            lat = geocodeData.features[0].center[1];
+            geocodeSuccess = true;
+          }
+        } catch (geoErr) {
+          console.warn("Mapbox geocoding failed:", geoErr);
         }
+      }
 
-        lng = geocodeData.features[0].center[0];
-        lat = geocodeData.features[0].center[1];
-      } else {
-        // Default coordinates for demo
-        lat = 47.6062;
-        lng = -122.3321;
+      // Fallback: detect city from address and use city center
+      if (!geocodeSuccess) {
+        const addressLower = searchAddress.toLowerCase();
+        if (addressLower.includes("seattle") || addressLower.includes("wa")) {
+          lat = 47.6062;
+          lng = -122.3321;
+          geocodeSuccess = true;
+        } else if (addressLower.includes("chicago") || addressLower.includes("il")) {
+          lat = 41.8781;
+          lng = -87.6298;
+          geocodeSuccess = true;
+        } else if (addressLower.includes("austin") || addressLower.includes("tx")) {
+          lat = 30.2672;
+          lng = -97.7431;
+          geocodeSuccess = true;
+        }
+      }
+
+      if (!geocodeSuccess) {
+        throw new Error("Could not determine location. Please include city and state (e.g., 'Seattle WA' or 'Chicago IL').");
       }
 
       // Now lookup zoning
@@ -97,12 +121,20 @@ export function AddressLookupClient({ mapboxToken }: { mapboxToken?: string }) {
         body: JSON.stringify({ latitude: lat, longitude: lng }),
       });
 
-      if (!zoningRes.ok) {
-        const errorData = await zoningRes.json();
-        throw new Error(errorData.error || "Failed to lookup zoning");
+      // Handle response
+      const responseText = await zoningRes.text();
+      let zoningData;
+      
+      try {
+        zoningData = JSON.parse(responseText);
+      } catch {
+        throw new Error("Server returned invalid response. Please try again.");
       }
 
-      const zoningData = await zoningRes.json();
+      if (!zoningRes.ok) {
+        throw new Error(zoningData.error || "Failed to lookup zoning");
+      }
+
       setResult(zoningData);
 
       // Update URL with address
@@ -163,18 +195,38 @@ export function AddressLookupClient({ mapboxToken }: { mapboxToken?: string }) {
           <span>Examples:</span>
           <button
             type="button"
-            onClick={() => { setAddress("600 Pine St, Seattle WA"); performSearch("600 Pine St, Seattle WA"); }}
-            className="text-accent-400 hover:text-accent-300"
+            onClick={() => { 
+              const addr = "600 Pine St, Seattle WA";
+              setAddress(addr); 
+              setTimeout(() => performSearch(addr), 100);
+            }}
+            className="text-accent-400 hover:text-accent-300 hover:underline"
           >
             600 Pine St, Seattle
           </button>
           <span>•</span>
           <button
             type="button"
-            onClick={() => { setAddress("233 S Wacker Dr, Chicago IL"); performSearch("233 S Wacker Dr, Chicago IL"); }}
-            className="text-accent-400 hover:text-accent-300"
+            onClick={() => { 
+              const addr = "233 S Wacker Dr, Chicago IL";
+              setAddress(addr); 
+              setTimeout(() => performSearch(addr), 100);
+            }}
+            className="text-accent-400 hover:text-accent-300 hover:underline"
           >
             233 S Wacker Dr, Chicago
+          </button>
+          <span>•</span>
+          <button
+            type="button"
+            onClick={() => { 
+              const addr = "Congress Ave, Austin TX";
+              setAddress(addr); 
+              setTimeout(() => performSearch(addr), 100);
+            }}
+            className="text-accent-400 hover:text-accent-300 hover:underline"
+          >
+            Congress Ave, Austin
           </button>
         </div>
       </form>

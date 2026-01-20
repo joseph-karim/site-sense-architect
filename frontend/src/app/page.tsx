@@ -108,12 +108,16 @@ export default function HomePage() {
               </div>
               <div className="flex flex-wrap justify-center gap-2 text-xs text-gray-500">
                 <span>Try:</span>
-                <Link href="/lookup?address=600+Pine+St+Seattle+WA" className="text-accent-400 hover:text-accent-300">
+                <Link href="/lookup?address=600%20Pine%20St%2C%20Seattle%20WA" className="text-accent-400 hover:text-accent-300 hover:underline">
                   600 Pine St, Seattle
                 </Link>
                 <span>•</span>
-                <Link href="/lookup?address=233+S+Wacker+Dr+Chicago+IL" className="text-accent-400 hover:text-accent-300">
+                <Link href="/lookup?address=233%20S%20Wacker%20Dr%2C%20Chicago%20IL" className="text-accent-400 hover:text-accent-300 hover:underline">
                   233 S Wacker Dr, Chicago
+                </Link>
+                <span>•</span>
+                <Link href="/lookup?address=Congress%20Ave%2C%20Austin%20TX" className="text-accent-400 hover:text-accent-300 hover:underline">
+                  Congress Ave, Austin
                 </Link>
               </div>
             </form>
