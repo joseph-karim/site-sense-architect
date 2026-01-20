@@ -1,5 +1,11 @@
 import fs from "node:fs/promises";
 import pg from "pg";
+import { config } from "dotenv";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: join(__dirname, "../.env.local") });
 
 function parseArgs(argv) {
   const args = {};
@@ -51,7 +57,7 @@ function asStringArray(value) {
 async function main() {
   const args = parseArgs(process.argv);
   // Get database URL: prefer full URL, or build from components, or use DATABASE_URL
-  let databaseUrl = process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL;
+  let databaseUrl = process.env.DATABASE_CONNECTION_STRING || process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL;
   
   // If no full URL, try building from individual components
   if (!databaseUrl && process.env.SUPABASE_DB_HOST && process.env.SUPABASE_DB_USER && process.env.SUPABASE_DB_PASSWORD) {
@@ -74,7 +80,13 @@ async function main() {
   if (!Array.isArray(rows)) throw new Error("Expected JSON array of zoning rule objects");
 
   const { Pool } = pg;
-  const pool = new Pool({ connectionString: databaseUrl });
+  // Parse for SSL and handle Supabase
+  const needsSsl = databaseUrl.includes('supabase.co') || databaseUrl.includes('sslmode=require');
+  const cleanUrl = databaseUrl.replace(/[?&]sslmode=[^&]+/, '');
+  const pool = new Pool({ 
+    connectionString: cleanUrl,
+    ssl: needsSsl ? { rejectUnauthorized: false } : undefined
+  });
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
