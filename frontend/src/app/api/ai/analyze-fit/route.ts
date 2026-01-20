@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { getPool } from "@/lib/db/pool";
 
 export const runtime = "nodejs";
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
 
 interface ProjectRequirements {
   proposedUse: string;
@@ -18,10 +13,9 @@ interface ProjectRequirements {
   additionalNotes: string;
 }
 
-interface ZoningData {
+interface ZoningRules {
   zone_code: string;
-  zone_name: string;
-  city: string;
+  zone_name?: string;
   max_height_ft: number | null;
   max_height_stories: number | null;
   far: number | null;
@@ -38,6 +32,231 @@ interface ZoningData {
   source_url: string;
 }
 
+interface AnalysisItem {
+  category: string;
+  status: "ok" | "conditional" | "conflict";
+  requirement: string;
+  zoningAllows: string;
+  explanation: string;
+  citation: string;
+}
+
+interface Risk {
+  severity: "high" | "medium" | "low";
+  title: string;
+  description: string;
+  impact: string;
+  mitigation?: string;
+}
+
+// Rule-based analysis without AI
+function analyzeWithRules(
+  requirements: ProjectRequirements,
+  rules: ZoningRules | null,
+  zoneCode: string,
+  city: string
+): { verdict: string; verdictSummary: string; analysis: AnalysisItem[]; risks: Risk[]; recommendations: string[] } {
+  const analysis: AnalysisItem[] = [];
+  const risks: Risk[] = [];
+  const recommendations: string[] = [];
+  let hasBlocker = false;
+  let hasConditional = false;
+
+  // Analyze use type
+  const useNorm = requirements.proposedUse.toLowerCase();
+  if (rules) {
+    const permitted = rules.permitted_uses?.map(u => u.toLowerCase()) || [];
+    const conditional = rules.conditional_uses?.map(u => u.toLowerCase()) || [];
+    const prohibited = rules.prohibited_uses?.map(u => u.toLowerCase()) || [];
+
+    const isPermitted = permitted.some(u => u.includes(useNorm) || useNorm.includes(u));
+    const isConditional = conditional.some(u => u.includes(useNorm) || useNorm.includes(u));
+    const isProhibited = prohibited.some(u => u.includes(useNorm) || useNorm.includes(u));
+
+    if (isProhibited) {
+      hasBlocker = true;
+      analysis.push({
+        category: "use",
+        status: "conflict",
+        requirement: requirements.proposedUse,
+        zoningAllows: "Prohibited",
+        explanation: `${requirements.proposedUse} is listed as a prohibited use in ${zoneCode}. This would require a zone change or variance.`,
+        citation: `${city.charAt(0).toUpperCase() + city.slice(1)} Municipal Code - ${zoneCode} Prohibited Uses`,
+      });
+    } else if (isConditional) {
+      hasConditional = true;
+      analysis.push({
+        category: "use",
+        status: "conditional",
+        requirement: requirements.proposedUse,
+        zoningAllows: "Conditional Use Permit",
+        explanation: `${requirements.proposedUse} requires a Conditional Use Permit (CUP) in ${zoneCode}. This is a discretionary approval.`,
+        citation: `${city.charAt(0).toUpperCase() + city.slice(1)} Municipal Code - ${zoneCode} Conditional Uses`,
+      });
+      risks.push({
+        severity: "medium",
+        title: "Conditional Use Permit Required",
+        description: `${requirements.proposedUse} use requires CUP approval`,
+        impact: "+4-12 weeks for hearing and approval process",
+        mitigation: "Pre-application meeting with planning department recommended",
+      });
+    } else if (isPermitted) {
+      analysis.push({
+        category: "use",
+        status: "ok",
+        requirement: requirements.proposedUse,
+        zoningAllows: "Permitted",
+        explanation: `${requirements.proposedUse} is listed as a permitted use in ${zoneCode}. No special approval needed for use type.`,
+        citation: `${city.charAt(0).toUpperCase() + city.slice(1)} Municipal Code - ${zoneCode} Permitted Uses`,
+      });
+    } else {
+      analysis.push({
+        category: "use",
+        status: "conditional",
+        requirement: requirements.proposedUse,
+        zoningAllows: "Not explicitly listed",
+        explanation: `${requirements.proposedUse} is not explicitly listed in the zoning rules. Verify with planning department.`,
+        citation: `Recommend verifying with ${city.charAt(0).toUpperCase() + city.slice(1)} Planning`,
+      });
+      recommendations.push("Confirm use classification with planning department before proceeding");
+    }
+
+    // Analyze height
+    if (requirements.heightNeeded) {
+      if (rules.max_height_ft) {
+        if (requirements.heightNeeded > rules.max_height_ft) {
+          hasBlocker = true;
+          analysis.push({
+            category: "height",
+            status: "conflict",
+            requirement: `${requirements.heightNeeded} ft`,
+            zoningAllows: `${rules.max_height_ft} ft max`,
+            explanation: `Proposed height exceeds the maximum by ${requirements.heightNeeded - rules.max_height_ft} ft. Would require height variance or bonus.`,
+            citation: `${zoneCode} Height Limit: ${rules.max_height_ft} ft`,
+          });
+          recommendations.push("Explore height bonus programs or reduce building height");
+        } else if (requirements.heightNeeded > rules.max_height_ft * 0.9) {
+          analysis.push({
+            category: "height",
+            status: "conditional",
+            requirement: `${requirements.heightNeeded} ft`,
+            zoningAllows: `${rules.max_height_ft} ft max`,
+            explanation: `Height is within limits but close to maximum. May trigger additional review thresholds.`,
+            citation: `${zoneCode} Height Limit: ${rules.max_height_ft} ft`,
+          });
+        } else {
+          analysis.push({
+            category: "height",
+            status: "ok",
+            requirement: `${requirements.heightNeeded} ft`,
+            zoningAllows: `${rules.max_height_ft} ft max`,
+            explanation: `Proposed height is comfortably within the zone's height limit.`,
+            citation: `${zoneCode} Height Limit: ${rules.max_height_ft} ft`,
+          });
+        }
+      }
+    }
+
+    // Add FAR analysis if available
+    if (rules.far) {
+      analysis.push({
+        category: "far",
+        status: "ok",
+        requirement: requirements.targetSF ? `~${requirements.targetSF.toLocaleString()} SF requested` : "TBD",
+        zoningAllows: `FAR ${rules.far}`,
+        explanation: `Maximum FAR of ${rules.far}. Verify against actual lot area to confirm buildable SF.`,
+        citation: `${zoneCode} FAR: ${rules.far}`,
+      });
+      recommendations.push("Calculate actual buildable SF based on lot area × FAR");
+    }
+
+    // Add setback analysis if available
+    if (rules.setback_front_ft !== null || rules.setback_side_ft !== null) {
+      analysis.push({
+        category: "setbacks",
+        status: "ok",
+        requirement: "Per design",
+        zoningAllows: `Front: ${rules.setback_front_ft ?? "TBD"}', Side: ${rules.setback_side_ft ?? "TBD"}', Rear: ${rules.setback_rear_ft ?? "TBD"}'`,
+        explanation: "Verify building envelope accommodates required setbacks.",
+        citation: `${zoneCode} Setback Requirements`,
+      });
+    }
+
+    // Add overlay risks
+    if (rules.overlays && rules.overlays.length > 0) {
+      rules.overlays.forEach(overlay => {
+        if (overlay.toLowerCase().includes("design") || overlay.toLowerCase().includes("historic")) {
+          risks.push({
+            severity: "medium",
+            title: "Design Review Required",
+            description: `${overlay} overlay applies to this site`,
+            impact: "+6-12 weeks for design review process",
+            mitigation: "Early engagement with design review board",
+          });
+        }
+      });
+    }
+
+    // Add red flag risks
+    if (rules.red_flags && rules.red_flags.length > 0) {
+      rules.red_flags.forEach(flag => {
+        risks.push({
+          severity: "medium",
+          title: flag,
+          description: "Zoning red flag identified for this zone",
+          impact: "May affect project approval or timeline",
+        });
+      });
+    }
+
+  } else {
+    // No rules found - generic analysis
+    analysis.push({
+      category: "use",
+      status: "conditional",
+      requirement: requirements.proposedUse,
+      zoningAllows: "Unknown",
+      explanation: `Detailed zoning rules not available for ${zoneCode}. Verify with planning department.`,
+      citation: "Contact local planning department",
+    });
+    recommendations.push(`Contact ${city.charAt(0).toUpperCase() + city.slice(1)} Planning Department to verify zoning requirements`);
+  }
+
+  // Height-based SEPA trigger (Seattle specific)
+  if (city.toLowerCase() === "seattle" && requirements.heightNeeded && requirements.heightNeeded >= 65) {
+    risks.push({
+      severity: "medium",
+      title: "SEPA Threshold",
+      description: "Projects at 65+ ft may trigger SEPA environmental review in Seattle",
+      impact: "+4-8 weeks for environmental review",
+      mitigation: "Early SEPA checklist submission",
+    });
+  }
+
+  // Determine verdict
+  let verdict: string;
+  let verdictSummary: string;
+
+  if (hasBlocker) {
+    verdict = "conflicts";
+    verdictSummary = "Project has zoning conflicts requiring variance, redesign, or zone change";
+  } else if (hasConditional) {
+    verdict = "conditional";
+    verdictSummary = `Project can proceed with approvals. ${risks.length} schedule risk${risks.length !== 1 ? "s" : ""} identified.`;
+  } else {
+    verdict = "fits";
+    verdictSummary = `Project fits zoning requirements. ${risks.length} schedule risk${risks.length !== 1 ? "s" : ""} to track.`;
+  }
+
+  // Add general recommendations
+  if (recommendations.length === 0) {
+    recommendations.push("Schedule pre-application meeting with planning department");
+    recommendations.push("Obtain formal zoning verification letter before design development");
+  }
+
+  return { verdict, verdictSummary, analysis, risks, recommendations };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -48,7 +267,7 @@ export async function POST(request: NextRequest) {
       address: string;
     };
 
-    // 1. Get zoning data from database
+    // Get zoning data from database
     const pool = getPool();
     
     if (!pool) {
@@ -58,7 +277,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // First, find the zoning district for this location
+    // Find the zoning district for this location
     const districtResult = await pool.query(`
       SELECT 
         zd.zone_code,
@@ -72,7 +291,7 @@ export async function POST(request: NextRequest) {
 
     if (districtResult.rows.length === 0) {
       return NextResponse.json(
-        { error: "No zoning district found for this location" },
+        { error: "No zoning district found for this location. The address may be outside our coverage area." },
         { status: 404 }
       );
     }
@@ -102,19 +321,27 @@ export async function POST(request: NextRequest) {
       LIMIT 1
     `, [district.city, district.zone_code]);
 
-    const rules = rulesResult.rows[0] || null;
+    const rules: ZoningRules | null = rulesResult.rows[0] || null;
 
-    // 2. Build context for Claude with all zoning data
+    // Build context for AI analysis
     const zoningContext = buildZoningContext(district, rules);
 
-    // 3. Use Claude to analyze fit with citations
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 3000,
-      messages: [
-        {
-          role: "user",
-          content: `You are an expert architect and zoning consultant. Analyze whether this project fits the site's zoning constraints.
+    let analysis;
+    let mode = "rules";
+
+    // Try AI analysis if available
+    if (process.env.ANTHROPIC_API_KEY) {
+      try {
+        const Anthropic = require("@anthropic-ai/sdk").default;
+        const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+        const message = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 3000,
+          messages: [
+            {
+              role: "user",
+              content: `You are an expert architect and zoning consultant. Analyze whether this project fits the site's zoning constraints.
 
 ## PROJECT REQUIREMENTS
 - Address: ${address}
@@ -157,26 +384,27 @@ Analyze the project fit and return a JSON response with:
 5. **recommendations**: Array of actionable recommendations for the architect
 
 Return ONLY valid JSON, no markdown formatting.`
-        }
-      ]
-    });
+            }
+          ]
+        });
 
-    // Parse Claude's response
-    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
-    
-    // Clean up potential markdown formatting
-    let jsonText = responseText.trim();
-    if (jsonText.startsWith("```json")) {
-      jsonText = jsonText.slice(7);
-    }
-    if (jsonText.startsWith("```")) {
-      jsonText = jsonText.slice(3);
-    }
-    if (jsonText.endsWith("```")) {
-      jsonText = jsonText.slice(0, -3);
-    }
+        const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+        
+        let jsonText = responseText.trim();
+        if (jsonText.startsWith("```json")) jsonText = jsonText.slice(7);
+        if (jsonText.startsWith("```")) jsonText = jsonText.slice(3);
+        if (jsonText.endsWith("```")) jsonText = jsonText.slice(0, -3);
 
-    const analysis = JSON.parse(jsonText.trim());
+        analysis = JSON.parse(jsonText.trim());
+        mode = "ai";
+      } catch (aiError) {
+        console.error("AI analysis failed, falling back to rules:", aiError);
+        analysis = analyzeWithRules(requirements, rules, district.zone_code, district.city);
+      }
+    } else {
+      // Use rule-based analysis
+      analysis = analyzeWithRules(requirements, rules, district.zone_code, district.city);
+    }
 
     return NextResponse.json({
       success: true,
@@ -185,13 +413,13 @@ Return ONLY valid JSON, no markdown formatting.`
         zone_code: district.zone_code,
         zone_name: district.zone_name || rules?.zone_name || district.zone_code,
         city: district.city,
-        max_height_ft: rules?.max_height_ft,
-        max_height_stories: rules?.max_height_stories,
-        far: rules?.far,
-        lot_coverage_pct: rules?.lot_coverage_pct,
-        setback_front_ft: rules?.setback_front_ft,
-        setback_side_ft: rules?.setback_side_ft,
-        setback_rear_ft: rules?.setback_rear_ft,
+        max_height_ft: rules?.max_height_ft ?? null,
+        max_height_stories: rules?.max_height_stories ?? null,
+        far: rules?.far ?? null,
+        lot_coverage_pct: rules?.lot_coverage_pct ?? null,
+        setback_front_ft: rules?.setback_front_ft ?? null,
+        setback_side_ft: rules?.setback_side_ft ?? null,
+        setback_rear_ft: rules?.setback_rear_ft ?? null,
         permitted_uses: rules?.permitted_uses || [],
         conditional_uses: rules?.conditional_uses || [],
         prohibited_uses: rules?.prohibited_uses || [],
@@ -202,6 +430,7 @@ Return ONLY valid JSON, no markdown formatting.`
       },
       requirements,
       analysis,
+      mode,
     });
   } catch (error) {
     console.error("Fit analysis error:", error);
@@ -212,7 +441,7 @@ Return ONLY valid JSON, no markdown formatting.`
   }
 }
 
-function buildZoningContext(district: Record<string, unknown>, rules: ZoningData | null): string {
+function buildZoningContext(district: Record<string, unknown>, rules: ZoningRules | null): string {
   const lines: string[] = [];
 
   lines.push(`Zone Code: ${district.zone_code}`);
@@ -267,17 +496,6 @@ function buildZoningContext(district: Record<string, unknown>, rules: ZoningData
       lines.push("");
       lines.push("### Known Red Flags / Triggers");
       rules.red_flags.forEach(flag => lines.push(`- ${flag}`));
-    }
-
-    if (rules.parking_rules && Object.keys(rules.parking_rules).length > 0) {
-      lines.push("");
-      lines.push("### Parking Requirements");
-      const parkingInfo = rules.parking_rules as { summary?: string };
-      if (parkingInfo.summary) {
-        lines.push(parkingInfo.summary);
-      } else {
-        lines.push(JSON.stringify(rules.parking_rules));
-      }
     }
 
     if (rules.source_url) {
