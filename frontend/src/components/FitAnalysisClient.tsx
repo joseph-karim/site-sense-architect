@@ -208,22 +208,37 @@ export function FitAnalysisClient({ mapboxToken }: { mapboxToken?: string }) {
       }
 
       const extracted = data.requirements;
-      // Safely handle arrays that might come back as non-arrays from AI
-      const sustainabilityTargets = Array.isArray(extracted.sustainabilityTargets) 
-        ? extracted.sustainabilityTargets 
-        : [];
-      const specialRequirements = Array.isArray(extracted.specialRequirements)
-        ? extracted.specialRequirements
-        : [];
+      
+      // Helper to safely extract value (AI may return {value, confidence} or direct value)
+      const getValue = <T,>(field: unknown, defaultValue: T): T => {
+        if (field === null || field === undefined) return defaultValue;
+        if (typeof field === "object" && "value" in (field as Record<string, unknown>)) {
+          return (field as { value: T }).value ?? defaultValue;
+        }
+        return field as T;
+      };
+      
+      // Safely handle arrays that might come back as non-arrays or {value: [...]} from AI
+      const getArrayValue = (field: unknown): string[] => {
+        if (Array.isArray(field)) return field;
+        if (field && typeof field === "object" && "value" in (field as Record<string, unknown>)) {
+          const val = (field as { value: unknown }).value;
+          return Array.isArray(val) ? val : [];
+        }
+        return [];
+      };
+      
+      const sustainabilityTargets = getArrayValue(extracted.sustainabilityTargets);
+      const specialRequirements = getArrayValue(extracted.specialRequirements);
       
       setRequirements({
-        projectName: extracted.projectName,
-        proposedUse: extracted.proposedUse || "",
-        targetSF: extracted.targetSF,
-        heightNeeded: extracted.heightNeeded,
-        stories: extracted.stories,
-        parkingStalls: extracted.parkingStalls,
-        timeline: extracted.timeline,
+        projectName: getValue(extracted.projectName, null),
+        proposedUse: getValue(extracted.proposedUse, "") || "",
+        targetSF: getValue(extracted.targetSF, null),
+        heightNeeded: getValue(extracted.heightNeeded, null),
+        stories: getValue(extracted.stories, null),
+        parkingStalls: getValue(extracted.parkingStalls, null),
+        timeline: getValue(extracted.timeline, null),
         additionalNotes: [...sustainabilityTargets, ...specialRequirements].join(". "),
       });
       setRawExtracts(Array.isArray(extracted.rawExtracts) ? extracted.rawExtracts : []);
