@@ -55,10 +55,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Simple direct lookup by coordinates
+// POST - Lookup by coordinates OR by address text
 const PostSchema = z.object({
-  latitude: z.number(),
-  longitude: z.number(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
   use_type: z.string().optional(),
 });
 
@@ -69,12 +71,12 @@ export async function POST(request: NextRequest) {
     
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid request. Provide latitude and longitude." },
+        { error: "Invalid request. Provide latitude/longitude or address." },
         { status: 400 }
       );
     }
 
-    const { latitude, longitude } = parsed.data;
+    const { latitude, longitude, address, city } = parsed.data;
     const pool = getPool();
 
     if (!pool) {
@@ -84,26 +86,78 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find the zoning district for this location
-    const districtResult = await pool.query(`
-      SELECT 
-        zd.zone_code,
-        zd.zone_name,
-        zd.city,
-        zd.properties
-      FROM zoning_districts zd
-      WHERE ST_Contains(zd.geometry, ST_SetSRID(ST_MakePoint($1, $2), 4326))
-      LIMIT 1
-    `, [longitude, latitude]);
+    let district = null;
+    let lookupMethod = "unknown";
 
-    if (districtResult.rows.length === 0) {
+    // Method 1: Try direct address lookup (works for Austin's 100k addresses)
+    if (address) {
+      const normalizedAddress = address.toUpperCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+      const addressWords = normalizedAddress.split(' ').filter(w => w.length > 2);
+      
+      if (addressWords.length > 0) {
+        // Try exact match first
+        const exactMatch = await pool.query(`
+          SELECT zone_code, base_zone, zone_category, city
+          FROM address_zoning
+          WHERE UPPER(full_address) = $1
+          ${city ? `AND city = $2` : ''}
+          LIMIT 1
+        `, city ? [normalizedAddress, city.toLowerCase()] : [normalizedAddress]);
+        
+        if (exactMatch.rows.length > 0) {
+          district = {
+            zone_code: exactMatch.rows[0].zone_code,
+            zone_name: exactMatch.rows[0].zone_category || exactMatch.rows[0].zone_code,
+            city: exactMatch.rows[0].city,
+          };
+          lookupMethod = "address_exact";
+        } else {
+          // Try fuzzy match on street name
+          const fuzzyMatch = await pool.query(`
+            SELECT zone_code, base_zone, zone_category, city, full_address
+            FROM address_zoning
+            WHERE normalized_address LIKE '%' || LOWER($1) || '%'
+            ${city ? `AND city = $2` : ''}
+            LIMIT 1
+          `, city ? [addressWords.slice(-2).join(' '), city.toLowerCase()] : [addressWords.slice(-2).join(' ')]);
+          
+          if (fuzzyMatch.rows.length > 0) {
+            district = {
+              zone_code: fuzzyMatch.rows[0].zone_code,
+              zone_name: fuzzyMatch.rows[0].zone_category || fuzzyMatch.rows[0].zone_code,
+              city: fuzzyMatch.rows[0].city,
+            };
+            lookupMethod = "address_fuzzy";
+          }
+        }
+      }
+    }
+
+    // Method 2: GIS polygon lookup with coordinates
+    if (!district && latitude !== undefined && longitude !== undefined) {
+      const districtResult = await pool.query(`
+        SELECT 
+          zd.zone_code,
+          zd.zone_name,
+          zd.city,
+          zd.properties
+        FROM zoning_districts zd
+        WHERE ST_Contains(zd.geometry, ST_SetSRID(ST_MakePoint($1, $2), 4326))
+        LIMIT 1
+      `, [longitude, latitude]);
+
+      if (districtResult.rows.length > 0) {
+        district = districtResult.rows[0];
+        lookupMethod = "gis_polygon";
+      }
+    }
+
+    if (!district) {
       return NextResponse.json(
         { error: "No zoning district found for this location. The address may be outside our coverage area (Seattle, Chicago, Austin)." },
         { status: 404 }
       );
     }
-
-    const district = districtResult.rows[0];
 
     // Get the zoning rules for this zone
     const rulesResult = await pool.query(`
@@ -135,6 +189,7 @@ export async function POST(request: NextRequest) {
       zone_code: district.zone_code,
       zone_name: district.zone_name || rules?.zone_name || district.zone_code,
       city: district.city,
+      lookup_method: lookupMethod,
       max_height_ft: rules?.max_height_ft ?? null,
       max_height_stories: rules?.max_height_stories ?? null,
       far: rules?.far ?? null,
