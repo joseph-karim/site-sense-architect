@@ -16,6 +16,7 @@
     "export:zoning-index": "node scripts/export-zoning-index.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "@types/mapbox-gl": "^3.4.1",
     "lucide-react": "^0.562.0",
     "mapbox-gl": "^3.18.0",

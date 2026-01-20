@@ -1,7 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Building2, FileText, AlertTriangle } from "lucide-react";
+import { Building2, FileText, Sparkles, Map } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Part3 — Entitlement Intelligence",
@@ -50,14 +50,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center gap-1">
+              <NavLink href="/fit-analysis/new" icon={<Sparkles className="w-4 h-4" />}>
+                Fit Analysis
+              </NavLink>
               <NavLink href="/commercial-zoning/seattle" icon={<Building2 className="w-4 h-4" />}>
-                Commercial Zoning
+                Zoning
               </NavLink>
               <NavLink href="/commercial-permits/seattle" icon={<FileText className="w-4 h-4" />}>
-                Commercial Permits
+                Permits
               </NavLink>
-              <NavLink href="/tools/corridor-width-checker" icon={<AlertTriangle className="w-4 h-4" />}>
-                Tripwires
+              <NavLink href="/tools/commercial-zoning-snapshot" icon={<Map className="w-4 h-4" />}>
+                Address Lookup
               </NavLink>
             </nav>
 
@@ -75,10 +78,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 ))}
               </div>
               <Link
-                href="/tools/commercial-zoning-snapshot"
+                href="/fit-analysis/new"
                 className="btn-primary text-sm py-2"
               >
-                Run Analysis
+                <Sparkles className="w-4 h-4" />
+                Project Fit
               </Link>
             </div>
           </div>
@@ -108,16 +112,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
               {/* Quick links */}
               <div>
-                <h4 className="font-display font-semibold text-white mb-4">Quick Links</h4>
+                <h4 className="font-display font-semibold text-white mb-4">Tools</h4>
                 <div className="flex flex-col gap-2">
+                  <Link href="/fit-analysis/new" className="text-sm text-gray-400 hover:text-accent-400 transition-colors">
+                    Project Fit Analysis
+                  </Link>
+                  <Link href="/tools/commercial-zoning-snapshot" className="text-sm text-gray-400 hover:text-accent-400 transition-colors">
+                    Address Lookup
+                  </Link>
                   <Link href="/commercial-zoning/seattle" className="text-sm text-gray-400 hover:text-accent-400 transition-colors">
-                    Seattle Commercial Zoning
-                  </Link>
-                  <Link href="/commercial-zoning/austin" className="text-sm text-gray-400 hover:text-accent-400 transition-colors">
-                    Austin Commercial Zoning
-                  </Link>
-                  <Link href="/commercial-zoning/chicago" className="text-sm text-gray-400 hover:text-accent-400 transition-colors">
-                    Chicago Commercial Zoning
+                    Browse Zoning Codes
                   </Link>
                 </div>
               </div>

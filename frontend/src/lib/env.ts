@@ -25,7 +25,11 @@ const ServerEnvSchema = z.object({
   REDIS_URL: z.string().optional(),
   MAPBOX_TOKEN: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().optional(),
-  PORT: z.string().optional()
+  PORT: z.string().optional(),
+  
+  // AI Services
+  ANTHROPIC_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional()
 });
 
 export const env = ServerEnvSchema.parse({
@@ -44,5 +48,7 @@ export const env = ServerEnvSchema.parse({
   REDIS_URL: process.env.REDIS_URL,
   MAPBOX_TOKEN: process.env.MAPBOX_TOKEN,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  PORT: process.env.PORT
+  PORT: process.env.PORT,
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY
 });
